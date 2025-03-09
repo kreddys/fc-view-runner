@@ -10,7 +10,7 @@ if (!fs.existsSync(duckdbFolder)) {
 
 const dbPath = path.join(duckdbFolder, config.duckdbFileName);
 let instance;
-let connection;
+const connectionPool = []; // Pool of connections
 
 function logDebug(message) {
     if (config.debug) {
@@ -21,15 +21,33 @@ function logDebug(message) {
 async function initialize() {
     try {
         instance = await duckdb.DuckDBInstance.create(dbPath);
-        connection = await instance.connect();
-        logDebug('DuckDB instance and connection initialized successfully');
+
+        // Create a pool of connections
+        for (let i = 0; i < config.connectionPoolSize; i++) {
+            const connection = await instance.connect();
+            connectionPool.push(connection);
+        }
+
+        logDebug('DuckDB instance and connection pool initialized successfully');
     } catch (error) {
         console.error('Error initializing DuckDB:', error);
         throw error;
     }
 }
 
+async function getConnection() {
+    if (connectionPool.length === 0) {
+        throw new Error('No connections available in the pool');
+    }
+    return connectionPool.pop(); // Get a connection from the pool
+}
+
+async function releaseConnection(connection) {
+    connectionPool.push(connection); // Return the connection to the pool
+}
+
 async function tableExists(tableName) {
+    const connection = await getConnection();
     try {
         const result = await connection.runAndReadAll(
             `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '${tableName}');`
@@ -38,6 +56,8 @@ async function tableExists(tableName) {
     } catch (error) {
         console.error('Error checking if table exists:', error);
         throw error;
+    } finally {
+        await releaseConnection(connection);
     }
 }
 
@@ -70,6 +90,7 @@ function mapFhirTypeToDuckDBType(fhirType, tags = []) {
 }
 
 async function createTable(tableName, columns) {
+    const connection = await getConnection();
     try {
         if (!columns || !Array.isArray(columns)) {
             throw new Error('Invalid columns: columns must be an array');
@@ -92,6 +113,8 @@ async function createTable(tableName, columns) {
     } catch (error) {
         console.error('Error creating table:', error);
         throw error;
+    } finally {
+        await releaseConnection(connection);
     }
 }
 
@@ -121,14 +144,15 @@ async function upsertData(tableName, rows, primaryKey) {
         `;
 
         const { default: pLimit } = await import('p-limit');
-        const limit = pLimit(config.asyncProcessing ? 10 : 1); // Control concurrency
-        const batchSize = 1000; // Process 1000 rows at a time
+        const limit = pLimit(config.asyncProcessing ? config.concurrencyLimit : 1); // Control concurrency
+        const batchSize = config.batchSize; // Process rows in batches
 
         for (let i = 0; i < rows.length; i += batchSize) {
             const batch = rows.slice(i, i + batchSize);
             console.log(`Processing batch ${i / batchSize + 1} of ${Math.ceil(rows.length / batchSize)}`);
 
             await Promise.all(batch.map(row => limit(async () => {
+                const connection = await getConnection(); // Get a connection from the pool
                 const values = columns.map(col => {
                     const value = row[col];
                     return Array.isArray(value) ? JSON.stringify(value) : value;
@@ -161,6 +185,8 @@ async function upsertData(tableName, rows, primaryKey) {
                     console.error('Error upserting row:', error.message);
                     console.error('Error stack:', error.stack);
                     console.error('Row data:', JSON.stringify(row, null, 2));
+                } finally {
+                    await releaseConnection(connection); // Release the connection back to the pool
                 }
             })));
 
@@ -176,7 +202,7 @@ async function upsertData(tableName, rows, primaryKey) {
 }
 
 async function getDatabaseHandler() {
-    if (!connection) {
+    if (!instance) {
         await initialize();
     }
     return {

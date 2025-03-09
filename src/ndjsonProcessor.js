@@ -126,7 +126,7 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
 
     // Dynamically import p-limit
     const { default: pLimit } = await import('p-limit');
-    const limit = pLimit(config.asyncProcessing ? 10 : 1); // Control concurrency
+    const limit = pLimit(config.asyncProcessing ? config.concurrencyLimit : 1); // Control concurrency
 
     return new Promise((resolve, reject) => {
         const stream = fs.createReadStream(filePath)
