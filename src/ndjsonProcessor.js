@@ -50,17 +50,24 @@ function evaluateFhirPath(resource, path, context) {
 }
 
 function processColumns(resource, columns, context) {
+    if (!columns || !Array.isArray(columns)) {
+        throw new Error('Invalid columns: columns must be an array');
+    }
+
     const row = {};
     columns.forEach((col) => {
         const result = evaluateFhirPath(resource, col.path, context);
         row[col.name] = col.collection ? result : result.length > 0 ? result[0] : null;
     });
+
+    console.log('Processed row:', row); // Debug log
     return row;
 }
 
 function evaluateWhereClauses(resource, whereClauses, context) {
     return whereClauses.every((where) => {
         const result = evaluateFhirPath(resource, where.path, context);
+        console.log(`Evaluated where clause "${where.path}":`, result); // Debug log
         return result && result.length > 0 && result[0] === true;
     });
 }
@@ -108,14 +115,12 @@ function processNestedSelect(resource, nestedSelect, context) {
     return rows;
 }
 
-async function processNdjson(filePath, viewDefinition) {
-    const { columns, whereClauses, constants, select } = viewDefinition;
-
+async function processNdjson(filePath, { columns, whereClauses, resource, constants, select }) {
     // Create context with custom functions and constants
     const context = {
         userInvocationTable: {
             ...customFunctions,
-            ...createConstantFunctions(constants || [])
+            ...createConstantFunctions(constants || []) // Handle undefined constants
         }
     };
 
@@ -124,37 +129,54 @@ async function processNdjson(filePath, viewDefinition) {
     return new Promise((resolve, reject) => {
         fs.createReadStream(filePath)
             .pipe(ndjson.parse())
-            .on('data', (resource) => {
-                logDebug(`Processing resource: ${JSON.stringify(resource, null, 2)}`);
+            .on('data', (resourceData) => {
+                logDebug(`Processing resource: ${JSON.stringify(resourceData, null, 2)}`);
 
                 try {
-                    // Evaluate where clauses
-                    if (evaluateWhereClauses(resource, whereClauses || [], context)) {
-                        // Process main columns
-                        const mainRow = processColumns(resource, columns, context);
+                    // Skip resources that do not match the ViewDefinition's resource type
+                    if (resourceData.resourceType !== resource) {
+                        logDebug(`Skipping resource of type ${resourceData.resourceType} (expected ${resource})`);
+                        return;
+                    }
 
-                        // Process nested selects
-                        if (select && select.length > 0) {
+                    // Evaluate where clauses (if provided)
+                    const includeResource = whereClauses
+                        ? evaluateWhereClauses(resourceData, whereClauses, context)
+                        : true; // Include all resources if no where clauses are provided
+
+                    console.log('Include resource:', includeResource); // Debug log
+
+                    if (includeResource) {
+                        // Process main columns
+                        const mainRow = processColumns(resourceData, columns, context);
+
+                        // Debug the select field
+                        console.log('Select field:', select); // Debug log
+
+                        // Process nested selects (if provided)
+                        if (select && select.length > 0 && select.some(selectDef => selectDef.select)) {
                             select.forEach(selectDef => {
                                 if (selectDef.select) {
-                                    const nestedRows = processNestedSelect(resource, selectDef, context);
+                                    const nestedRows = processNestedSelect(resourceData, selectDef, context);
                                     nestedRows.forEach(nestedRow => {
                                         rows.push({ ...mainRow, ...nestedRow });
                                     });
                                 }
                             });
                         } else {
-                            rows.push(mainRow);
+                            rows.push(mainRow); // Add the main row to the rows array
+                            console.log('Added row to rows array:', mainRow); // Debug log
                         }
                     }
                 } catch (err) {
                     console.error('Error processing resource:', err);
-                    console.error('Resource:', JSON.stringify(resource, null, 2));
+                    console.error('Resource:', JSON.stringify(resourceData, null, 2));
                 }
             })
             .on('end', () => {
                 logDebug('Finished processing NDJSON file.');
                 logDebug(`Processed ${rows.length} rows`);
+                console.log('Rows to upsert:', rows); // Debug log
                 resolve(rows);
             })
             .on('error', (err) => {

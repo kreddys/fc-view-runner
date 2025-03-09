@@ -50,17 +50,17 @@ async function main() {
             console.log(`Processing ViewDefinition: ${viewDefinition.name}`);
 
             // Parse ViewDefinition
-            const { columns, whereClauses } = parseViewDefinition(viewDefinition);
+            const { columns, whereClauses, resource, constants, select } = parseViewDefinition(viewDefinition);
 
             // Process NDJSON file
-            const rows = await processNdjson(ndjsonFilePath, columns, whereClauses);
+            const rows = await processNdjson(ndjsonFilePath, { columns, whereClauses, resource, constants, select });
 
             // Create table in DuckDB (if it doesn't exist)
             const tableName = viewDefinition.name.toLowerCase();
             await dbHandler.createTable(tableName, columns);
 
             // Upsert data into DuckDB
-            const primaryKey = `${tableName}_id`; // e.g., "observation_id" or "patient_id"
+            const primaryKey = `${tableName}_id`; // e.g., "observation_id"
             await dbHandler.upsertData(tableName, rows, primaryKey);
 
             console.log(`Data for ViewDefinition "${viewDefinition.name}" successfully upserted into DuckDB!`);

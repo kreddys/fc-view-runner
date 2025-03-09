@@ -70,9 +70,11 @@ function mapFhirTypeToDuckDBType(fhirType, tags = []) {
     return typeMapping[fhirType] || 'VARCHAR';
 }
 
-async function createTable(tableName, viewDef) {
+async function createTable(tableName, columns) {
     try {
-        const { columns, nestedSelects } = viewDef;
+        if (!columns || !Array.isArray(columns)) {
+            throw new Error('Invalid columns: columns must be an array');
+        }
 
         // Create main table
         if (!await tableExists(tableName)) {
@@ -84,15 +86,11 @@ async function createTable(tableName, viewDef) {
                 return `${col.name} ${dbType}`;
             }).join(', ');
 
-            const query = `CREATE TABLE ${tableName} (${columnDefs});`;
+            // Add primary key constraint for the first column (e.g., observation_id)
+            const primaryKey = `${tableName}_id`; // e.g., "observation_id"
+            const query = `CREATE TABLE ${tableName} (${columnDefs}, PRIMARY KEY (${primaryKey}));`;
             logDebug(`Creating table with query: ${query}`);
             await connection.run(query);
-        }
-
-        // Create tables for nested selects
-        for (const nested of nestedSelects) {
-            const nestedTableName = `${tableName}_${nested.path.replace(/\./g, '_')}`;
-            await createNestedTable(nestedTableName, nested, tableName);
         }
     } catch (error) {
         console.error('Error creating table:', error);
@@ -120,7 +118,10 @@ async function createNestedTable(tableName, nestedSelect, parentTable) {
 }
 
 async function upsertData(tableName, rows, primaryKey) {
-    if (rows.length === 0) return;
+    if (rows.length === 0) {
+        console.warn(`No rows to upsert for table ${tableName}`);
+        return;
+    }
 
     try {
         const columns = Object.keys(rows[0]);
