@@ -3,16 +3,20 @@ const path = require('path');
 const fs = require('fs');
 const config = require('./config');
 
-// Ensure the data/duckdb folder exists
 const duckdbFolder = path.join(__dirname, '../data/duckdb');
 if (!fs.existsSync(duckdbFolder)) {
     fs.mkdirSync(duckdbFolder, { recursive: true });
 }
 
-// Initialize DuckDB with a file path
 const dbPath = path.join(duckdbFolder, 'fhir_data.db');
 let instance;
 let connection;
+
+function logDebug(message) {
+    if (config.debug) {
+        console.log(message);
+    }
+}
 
 async function initialize() {
     try {
@@ -25,17 +29,6 @@ async function initialize() {
     }
 }
 
-function logDebug(message) {
-    if (config.debug) {
-        console.log(message);
-    }
-}
-
-/**
- * Check if a table exists in DuckDB.
- * @param {string} tableName - Name of the table.
- * @returns {Promise<boolean>} - True if the table exists, false otherwise.
- */
 async function tableExists(tableName) {
     try {
         const result = await connection.runAndReadAll(
@@ -48,12 +41,11 @@ async function tableExists(tableName) {
     }
 }
 
-/**
- * Map FHIR types to DuckDB types.
- * @param {string} fhirType - The FHIR type.
- * @returns {string} - The corresponding DuckDB type.
- */
-function mapFhirTypeToDuckDBType(fhirType) {
+function mapFhirTypeToDuckDBType(fhirType, tags = []) {
+    // Check for explicit type override in tags
+    const typeTag = tags.find(t => t.name === 'ansi/type');
+    if (typeTag) return typeTag.value;
+
     const typeMapping = {
         boolean: 'BOOLEAN',
         integer: 'INTEGER',
@@ -67,58 +59,76 @@ function mapFhirTypeToDuckDBType(fhirType) {
         id: 'VARCHAR',
         url: 'VARCHAR',
         uuid: 'VARCHAR',
+        base64Binary: 'BLOB',
+        instant: 'TIMESTAMP',
+        time: 'TIME',
+        positiveInt: 'INTEGER',
+        unsignedInt: 'INTEGER',
+        integer64: 'BIGINT'
     };
 
     return typeMapping[fhirType] || 'VARCHAR';
 }
 
-/**
- * Create a table in DuckDB based on the column definitions.
- * @param {string} tableName - Name of the table.
- * @param {Array} columns - Array of objects containing path, name, and type.
- */
-async function createTable(tableName, columns) {
+async function createTable(tableName, viewDef) {
     try {
-        const tableExistsResult = await tableExists(tableName);
-        if (tableExistsResult) {
-            logDebug(`Table "${tableName}" already exists. Skipping creation.`);
-            return;
+        const { columns, nestedSelects } = viewDef;
+
+        // Create main table
+        if (!await tableExists(tableName)) {
+            const columnDefs = columns.map(col => {
+                const dbType = mapFhirTypeToDuckDBType(col.type, col.tags);
+                if (col.collection) {
+                    return `${col.name} ${dbType}[]`; // Array type for collection columns
+                }
+                return `${col.name} ${dbType}`;
+            }).join(', ');
+
+            const query = `CREATE TABLE ${tableName} (${columnDefs});`;
+            logDebug(`Creating table with query: ${query}`);
+            await connection.run(query);
         }
 
-        const idColumnName = `${tableName}_id`;
-        const columnDefinitions = columns
-            .map((col) => {
-                if (col.name === idColumnName) {
-                    return `${col.name} ${mapFhirTypeToDuckDBType(col.type)} PRIMARY KEY`;
-                }
-                return `${col.name} ${mapFhirTypeToDuckDBType(col.type)}`;
-            })
-            .join(', ');
-
-        const query = `CREATE TABLE ${tableName} (${columnDefinitions});`;
-        logDebug(`Creating table with query: ${query}`);
-
-        await connection.run(query);
-        logDebug('Table created successfully.');
+        // Create tables for nested selects
+        for (const nested of nestedSelects) {
+            const nestedTableName = `${tableName}_${nested.path.replace(/\./g, '_')}`;
+            await createNestedTable(nestedTableName, nested, tableName);
+        }
     } catch (error) {
         console.error('Error creating table:', error);
         throw error;
     }
 }
 
-/**
- * Insert or update rows in the DuckDB table.
- * @param {string} tableName - Name of the table.
- * @param {Array} rows - Array of objects representing rows of data.
- * @param {string} primaryKey - The primary key column (e.g., "observation_id" or "patient_id").
- */
+async function createNestedTable(tableName, nestedSelect, parentTable) {
+    if (!await tableExists(tableName)) {
+        const columnDefs = nestedSelect.columns.map(col => {
+            const dbType = mapFhirTypeToDuckDBType(col.type, col.tags);
+            return `${col.name} ${col.collection ? `${dbType}[]` : dbType}`;
+        });
+
+        // Add foreign key reference to parent table
+        columnDefs.push(`${parentTable}_id VARCHAR REFERENCES ${parentTable}(id)`);
+
+        const query = `CREATE TABLE ${tableName} (
+            id VARCHAR PRIMARY KEY,
+            ${columnDefs.join(', ')}
+        );`;
+
+        await connection.run(query);
+    }
+}
+
 async function upsertData(tableName, rows, primaryKey) {
     if (rows.length === 0) return;
 
     try {
         const columns = Object.keys(rows[0]);
         const placeholders = columns.map(() => '?').join(', ');
-        const updateClause = columns.map((col) => `${col} = EXCLUDED.${col}`).join(', ');
+        const updateClause = columns
+            .filter(col => col !== primaryKey)
+            .map(col => `${col} = EXCLUDED.${col}`)
+            .join(', ');
 
         const query = `
             INSERT INTO ${tableName} (${columns.join(', ')}) 
@@ -127,40 +137,34 @@ async function upsertData(tableName, rows, primaryKey) {
             DO UPDATE SET ${updateClause};
         `;
 
-        logDebug(`Upserting data into table: ${tableName}`);
-
         for (const row of rows) {
-            const values = columns.map(col => row[col]);
+            const values = columns.map(col => {
+                const value = row[col];
+                return Array.isArray(value) ? JSON.stringify(value) : value;
+            });
+
             try {
                 await connection.run(query, values);
-                logDebug(`Successfully upserted row: ${JSON.stringify(values, null, 2)}`);
+                logDebug(`Upserted row with ${primaryKey}: ${row[primaryKey]}`);
             } catch (error) {
                 console.error('Error upserting row:', error);
-                console.error('Table:', tableName);
                 console.error('Row data:', JSON.stringify(row, null, 2));
-                console.error('Query:', query);
-                console.error('Values:', JSON.stringify(values, null, 2));
                 throw error;
             }
         }
-
-        logDebug('All data upserted successfully.');
     } catch (error) {
         throw error;
     }
 }
 
-// Initialize the database connection when the module is loaded
-initialize().catch(console.error);
-
-// Export an async function to ensure the database is initialized
 async function getDatabaseHandler() {
     if (!connection) {
         await initialize();
     }
     return {
         createTable,
-        upsertData
+        upsertData,
+        tableExists
     };
 }
 

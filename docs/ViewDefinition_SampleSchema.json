@@ -1,0 +1,57 @@
+{
+    "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+    "url": "<canonical-uri>",
+    "identifier": {
+        "system": "<system>",
+        "value": "<value>"
+    },
+    "name": "ExampleView",
+    "title": "Human Friendly Name",
+    "status": "draft",
+    "experimental": true,
+    "publisher": "Example Organization",
+    "contact": [
+        {
+            "name": "Contact Name",
+            "email": "contact@example.com"
+        }
+    ],
+    "description": "Description of the view",
+    "resource": "Patient",
+    "fhirVersion": [
+        "4.0.1"
+    ],
+    "constant": [
+        {
+            "name": "maxAge",
+            "valueInteger": 65
+        }
+    ],
+    "select": [
+        {
+            "column": [
+                {
+                    "path": "id",
+                    "name": "patient_id",
+                    "type": "id",
+                    "description": "Patient identifier",
+                    "collection": false,
+                    "tag": [
+                        {
+                            "name": "ansi/type",
+                            "value": "VARCHAR(64)"
+                        }
+                    ]
+                }
+            ],
+            "forEach": "name",
+            "select": []
+        }
+    ],
+    "where": [
+        {
+            "path": "active = true",
+            "description": "Only active patients"
+        }
+    ]
+}

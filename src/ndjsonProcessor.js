@@ -18,10 +18,107 @@ const customFunctions = {
     isActive: {
         fn: (inputs) => inputs.map((resource) => resource.active || false),
         arity: { 0: [] },
-    },
+    }
 };
 
-async function processNdjson(filePath, columns, whereClauses) {
+function createConstantFunctions(constants) {
+    return constants.reduce((acc, constant) => {
+        acc[constant.name] = {
+            fn: () => [constant.value],
+            arity: { 0: [] }
+        };
+        return acc;
+    }, {});
+}
+
+function evaluateFhirPath(resource, path, context) {
+    try {
+        const result = fhirpath.evaluate(
+            resource,
+            path,
+            null,
+            fhirpath_r4_model,
+            context
+        );
+        logDebug(`Evaluated path "${path}": ${JSON.stringify(result, null, 2)}`);
+        return result;
+    } catch (err) {
+        console.error(`Error evaluating FHIRPath "${path}" on resource:`, resource);
+        console.error(err);
+        return [];
+    }
+}
+
+function processColumns(resource, columns, context) {
+    const row = {};
+    columns.forEach((col) => {
+        const result = evaluateFhirPath(resource, col.path, context);
+        row[col.name] = col.collection ? result : result.length > 0 ? result[0] : null;
+    });
+    return row;
+}
+
+function evaluateWhereClauses(resource, whereClauses, context) {
+    return whereClauses.every((where) => {
+        const result = evaluateFhirPath(resource, where.path, context);
+        return result && result.length > 0 && result[0] === true;
+    });
+}
+
+function processNestedSelect(resource, nestedSelect, context) {
+    const rows = [];
+    let parentElements = [];
+
+    if (nestedSelect.forEach) {
+        parentElements = evaluateFhirPath(resource, nestedSelect.forEach, context);
+    } else if (nestedSelect.forEachOrNull) {
+        parentElements = evaluateFhirPath(resource, nestedSelect.forEachOrNull, context);
+        if (parentElements.length === 0) {
+            parentElements = [null];
+        }
+    }
+
+    parentElements.forEach(element => {
+        const row = {};
+
+        // Process columns for this nested select
+        if (nestedSelect.column) {
+            nestedSelect.column.forEach(col => {
+                const result = element ?
+                    evaluateFhirPath(element, col.path, context) :
+                    [];
+                row[col.name] = col.collection ? result : result.length > 0 ? result[0] : null;
+            });
+        }
+
+        // Process further nested selects recursively
+        if (nestedSelect.select) {
+            nestedSelect.select.forEach(childSelect => {
+                const childRows = processNestedSelect(element || resource, childSelect, context);
+                // Combine child rows with current row
+                childRows.forEach(childRow => {
+                    rows.push({ ...row, ...childRow });
+                });
+            });
+        } else {
+            rows.push(row);
+        }
+    });
+
+    return rows;
+}
+
+async function processNdjson(filePath, viewDefinition) {
+    const { columns, whereClauses, constants, select } = viewDefinition;
+
+    // Create context with custom functions and constants
+    const context = {
+        userInvocationTable: {
+            ...customFunctions,
+            ...createConstantFunctions(constants || [])
+        }
+    };
+
     const rows = [];
 
     return new Promise((resolve, reject) => {
@@ -30,44 +127,34 @@ async function processNdjson(filePath, columns, whereClauses) {
             .on('data', (resource) => {
                 logDebug(`Processing resource: ${JSON.stringify(resource, null, 2)}`);
 
-                let includeResource = true;
-                whereClauses.forEach((where) => {
-                    const result = fhirpath.evaluate(
-                        resource,
-                        where.path,
-                        null,
-                        fhirpath_r4_model,
-                        { userInvocationTable: customFunctions }
-                    );
-                    if (!result || result.length === 0 || !result[0]) {
-                        includeResource = false;
-                    }
-                });
+                try {
+                    // Evaluate where clauses
+                    if (evaluateWhereClauses(resource, whereClauses || [], context)) {
+                        // Process main columns
+                        const mainRow = processColumns(resource, columns, context);
 
-                if (includeResource) {
-                    const row = {};
-                    columns.forEach((col) => {
-                        try {
-                            const result = fhirpath.evaluate(
-                                resource,
-                                col.path,
-                                null,
-                                fhirpath_r4_model,
-                                { userInvocationTable: customFunctions }
-                            );
-                            logDebug(`Evaluated path "${col.path}": ${JSON.stringify(result, null, 2)}`);
-                            row[col.name] = col.collection ? result : result.length > 0 ? result[0] : null;
-                        } catch (err) {
-                            console.error(`Error evaluating path "${col.path}" on resource:`, resource);
-                            console.error(err);
-                            row[col.name] = null;
+                        // Process nested selects
+                        if (select && select.length > 0) {
+                            select.forEach(selectDef => {
+                                if (selectDef.select) {
+                                    const nestedRows = processNestedSelect(resource, selectDef, context);
+                                    nestedRows.forEach(nestedRow => {
+                                        rows.push({ ...mainRow, ...nestedRow });
+                                    });
+                                }
+                            });
+                        } else {
+                            rows.push(mainRow);
                         }
-                    });
-                    rows.push(row);
+                    }
+                } catch (err) {
+                    console.error('Error processing resource:', err);
+                    console.error('Resource:', JSON.stringify(resource, null, 2));
                 }
             })
             .on('end', () => {
                 logDebug('Finished processing NDJSON file.');
+                logDebug(`Processed ${rows.length} rows`);
                 resolve(rows);
             })
             .on('error', (err) => {
