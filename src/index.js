@@ -31,8 +31,12 @@ function scanViewDefinitions(folderPath) {
     return viewDefinitions;
 }
 
+// In index.js, update the main function:
 async function main() {
     try {
+        // Get the database handler
+        const dbHandler = await require('./duckdbHandler')();
+
         // Example ViewDefinitions folder and NDJSON file path
         const viewDefinitionsFolder = './definitions';
         const ndjsonFilePath = './data/ndjson/sample_resources.ndjson';
@@ -53,11 +57,11 @@ async function main() {
 
             // Create table in DuckDB (if it doesn't exist)
             const tableName = viewDefinition.name.toLowerCase();
-            await createTable(tableName, columns);
+            await dbHandler.createTable(tableName, columns);
 
             // Upsert data into DuckDB
             const primaryKey = `${tableName}_id`; // e.g., "observation_id" or "patient_id"
-            await upsertData(tableName, rows, primaryKey);
+            await dbHandler.upsertData(tableName, rows, primaryKey);
 
             console.log(`Data for ViewDefinition "${viewDefinition.name}" successfully upserted into DuckDB!`);
         }

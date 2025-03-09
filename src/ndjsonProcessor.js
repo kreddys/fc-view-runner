@@ -21,7 +21,7 @@ const customFunctions = {
     },
 };
 
-function processNdjson(filePath, columns, whereClauses) {
+async function processNdjson(filePath, columns, whereClauses) {
     const rows = [];
 
     return new Promise((resolve, reject) => {

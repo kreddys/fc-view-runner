@@ -1,4 +1,4 @@
-const duckdb = require('duckdb');
+const duckdb = require('@duckdb/node-api');
 const path = require('path');
 const fs = require('fs');
 const config = require('./config');
@@ -11,7 +11,19 @@ if (!fs.existsSync(duckdbFolder)) {
 
 // Initialize DuckDB with a file path
 const dbPath = path.join(duckdbFolder, 'fhir_data.db');
-const db = new duckdb.Database(dbPath);
+let instance;
+let connection;
+
+async function initialize() {
+    try {
+        instance = await duckdb.DuckDBInstance.create(dbPath);
+        connection = await instance.connect();
+        logDebug('DuckDB instance and connection initialized successfully');
+    } catch (error) {
+        console.error('Error initializing DuckDB:', error);
+        throw error;
+    }
+}
 
 function logDebug(message) {
     if (config.debug) {
@@ -24,20 +36,16 @@ function logDebug(message) {
  * @param {string} tableName - Name of the table.
  * @returns {Promise<boolean>} - True if the table exists, false otherwise.
  */
-function tableExists(tableName) {
-    return new Promise((resolve, reject) => {
-        const connection = db.connect();
-        const query = `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '${tableName}');`;
-
-        connection.all(query, (err, rows) => {
-            if (err) {
-                console.error('Error checking if table exists:', err);
-                reject(err);
-            } else {
-                resolve(rows[0].exists);
-            }
-        });
-    });
+async function tableExists(tableName) {
+    try {
+        const result = await connection.runAndReadAll(
+            `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '${tableName}');`
+        );
+        return result.getRows()[0][0];
+    } catch (error) {
+        console.error('Error checking if table exists:', error);
+        throw error;
+    }
 }
 
 /**
@@ -61,7 +69,7 @@ function mapFhirTypeToDuckDBType(fhirType) {
         uuid: 'VARCHAR',
     };
 
-    return typeMapping[fhirType] || 'VARCHAR'; // Default to VARCHAR if type is unknown
+    return typeMapping[fhirType] || 'VARCHAR';
 }
 
 /**
@@ -70,31 +78,32 @@ function mapFhirTypeToDuckDBType(fhirType) {
  * @param {Array} columns - Array of objects containing path, name, and type.
  */
 async function createTable(tableName, columns) {
-    const tableExistsResult = await tableExists(tableName);
-    if (tableExistsResult) {
-        logDebug(`Table "${tableName}" already exists. Skipping creation.`);
-        return;
+    try {
+        const tableExistsResult = await tableExists(tableName);
+        if (tableExistsResult) {
+            logDebug(`Table "${tableName}" already exists. Skipping creation.`);
+            return;
+        }
+
+        const idColumnName = `${tableName}_id`;
+        const columnDefinitions = columns
+            .map((col) => {
+                if (col.name === idColumnName) {
+                    return `${col.name} ${mapFhirTypeToDuckDBType(col.type)} PRIMARY KEY`;
+                }
+                return `${col.name} ${mapFhirTypeToDuckDBType(col.type)}`;
+            })
+            .join(', ');
+
+        const query = `CREATE TABLE ${tableName} (${columnDefinitions});`;
+        logDebug(`Creating table with query: ${query}`);
+
+        await connection.run(query);
+        logDebug('Table created successfully.');
+    } catch (error) {
+        console.error('Error creating table:', error);
+        throw error;
     }
-
-    const columnDefinitions = columns
-        .map((col) => `${col.name} ${mapFhirTypeToDuckDBType(col.type)}`)
-        .join(', ');
-
-    const query = `CREATE TABLE ${tableName} (${columnDefinitions});`;
-
-    logDebug(`Creating table with query: ${query}`);
-
-    return new Promise((resolve, reject) => {
-        db.run(query, (err) => {
-            if (err) {
-                console.error('Error creating table:', err);
-                reject(err);
-            } else {
-                logDebug('Table created successfully.');
-                resolve();
-            }
-        });
-    });
 }
 
 /**
@@ -103,51 +112,56 @@ async function createTable(tableName, columns) {
  * @param {Array} rows - Array of objects representing rows of data.
  * @param {string} primaryKey - The primary key column (e.g., "observation_id" or "patient_id").
  */
-function upsertData(tableName, rows, primaryKey) {
-    return new Promise((resolve, reject) => {
-        const connection = db.connect();
+async function upsertData(tableName, rows, primaryKey) {
+    if (rows.length === 0) return;
 
-        const columns = Object.keys(rows[0] || []);
+    try {
+        const columns = Object.keys(rows[0]);
         const placeholders = columns.map(() => '?').join(', ');
         const updateClause = columns.map((col) => `${col} = EXCLUDED.${col}`).join(', ');
 
         const query = `
-      INSERT INTO ${tableName} (${columns.join(', ')}) 
-      VALUES (${placeholders})
-      ON CONFLICT (${primaryKey}) 
-      DO UPDATE SET ${updateClause};
-    `;
+            INSERT INTO ${tableName} (${columns.join(', ')}) 
+            VALUES (${placeholders})
+            ON CONFLICT (${primaryKey}) 
+            DO UPDATE SET ${updateClause};
+        `;
 
         logDebug(`Upserting data into table: ${tableName}`);
-        logDebug(`Upsert query: ${query}`);
 
-        let hasError = false;
+        for (const row of rows) {
+            const values = columns.map(col => row[col]);
+            try {
+                await connection.run(query, values);
+                logDebug(`Successfully upserted row: ${JSON.stringify(values, null, 2)}`);
+            } catch (error) {
+                console.error('Error upserting row:', error);
+                console.error('Table:', tableName);
+                console.error('Row data:', JSON.stringify(row, null, 2));
+                console.error('Query:', query);
+                console.error('Values:', JSON.stringify(values, null, 2));
+                throw error;
+            }
+        }
 
-        rows.forEach((row) => {
-            const values = columns.map((col) => row[col]);
-            logDebug(`Upserting row: ${JSON.stringify(values, null, 2)}`);
-
-            connection.run(query, values, (err) => {
-                if (err) {
-                    hasError = true;
-                    console.error('Error upserting row:', err);
-                    console.error('Table:', tableName);
-                    console.error('Row data:', JSON.stringify(row, null, 2));
-                    console.error('Query:', query);
-                    console.error('Values:', JSON.stringify(values, null, 2));
-                    reject(err);
-                }
-            });
-        });
-
-        // if (!hasError) {
-        //     logDebug('Data upserted successfully.');
-        //     resolve();
-        // }
-    });
+        logDebug('All data upserted successfully.');
+    } catch (error) {
+        throw error;
+    }
 }
 
-module.exports = {
-    createTable,
-    upsertData,
-};
+// Initialize the database connection when the module is loaded
+initialize().catch(console.error);
+
+// Export an async function to ensure the database is initialized
+async function getDatabaseHandler() {
+    if (!connection) {
+        await initialize();
+    }
+    return {
+        createTable,
+        upsertData
+    };
+}
+
+module.exports = getDatabaseHandler;
