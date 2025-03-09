@@ -14,7 +14,7 @@ let connection;
 
 function logDebug(message) {
     if (config.debug) {
-        console.log(`[DEBUG] ${message}`);
+        console.log(`[DEBUG] ${new Date().toISOString()} - ${message}`);
     }
 }
 
@@ -120,33 +120,55 @@ async function upsertData(tableName, rows, primaryKey) {
             DO UPDATE SET ${updateClause};
         `;
 
-        for (const row of rows) {
-            const values = columns.map(col => {
-                const value = row[col];
-                return Array.isArray(value) ? JSON.stringify(value) : value;
-            });
+        const { default: pLimit } = await import('p-limit');
+        const limit = pLimit(config.asyncProcessing ? 10 : 1); // Control concurrency
+        const batchSize = 1000; // Process 1000 rows at a time
 
-            try {
-                // Check if the primary key already exists in the table
-                const existsQuery = `SELECT 1 FROM ${tableName} WHERE ${primaryKey} = ?`;
-                const existsResult = await connection.runAndReadAll(existsQuery, [row[primaryKey]]);
+        for (let i = 0; i < rows.length; i += batchSize) {
+            const batch = rows.slice(i, i + batchSize);
+            console.log(`Processing batch ${i / batchSize + 1} of ${Math.ceil(rows.length / batchSize)}`);
 
-                await connection.run(query, values);
+            await Promise.all(batch.map(row => limit(async () => {
+                const values = columns.map(col => {
+                    const value = row[col];
+                    return Array.isArray(value) ? JSON.stringify(value) : value;
+                });
 
-                if (existsResult.getRows().length > 0) {
-                    updated++;
-                } else {
-                    inserted++;
+                try {
+                    // Validate primary key
+                    if (!row[primaryKey]) {
+                        console.error(`Missing primary key in row: ${JSON.stringify(row, null, 2)}`);
+                        errors++;
+                        return;
+                    }
+
+                    // Execute the upsert query
+                    await connection.run(query, values);
+
+                    // Check if the primary key already exists in the table
+                    const existsQuery = `SELECT 1 FROM ${tableName} WHERE ${primaryKey} = ?`;
+                    const existsResult = await connection.runAndReadAll(existsQuery, [row[primaryKey]]);
+
+                    if (existsResult.getRows().length > 0) {
+                        updated++;
+                        logDebug(`Updated row with ${primaryKey}: ${row[primaryKey]}`);
+                    } else {
+                        inserted++;
+                        logDebug(`Inserted row with ${primaryKey}: ${row[primaryKey]}`);
+                    }
+                } catch (error) {
+                    errors++;
+                    console.error('Error upserting row:', error.message);
+                    console.error('Error stack:', error.stack);
+                    console.error('Row data:', JSON.stringify(row, null, 2));
                 }
+            })));
 
-                logDebug(`Upserted row with ${primaryKey}: ${row[primaryKey]}`);
-            } catch (error) {
-                errors++;
-                console.error('Error upserting row:', error);
-                console.error('Row data:', JSON.stringify(row, null, 2));
-            }
+            // Log batch status
+            console.log(`Processed batch ${i / batchSize + 1}: Upserted ${i + batch.length} of ${rows.length} rows (Inserted: ${inserted}, Updated: ${updated}, Errors: ${errors})`);
         }
     } catch (error) {
+        console.error('Error in upsertData:', error);
         throw error;
     }
 

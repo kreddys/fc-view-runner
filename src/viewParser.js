@@ -2,7 +2,7 @@ const config = require('./config');
 
 function logDebug(message) {
     if (config.debug) {
-        console.log(`[DEBUG] ${message}`);
+        console.log(`[DEBUG] ${new Date().toISOString()} - ${message}`);
     }
 }
 

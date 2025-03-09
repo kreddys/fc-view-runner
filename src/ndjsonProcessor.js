@@ -6,7 +6,7 @@ const config = require('./config');
 
 function logDebug(message) {
     if (config.debug) {
-        console.log(`[DEBUG] ${message}`);
+        console.log(`[DEBUG] ${new Date().toISOString()} - ${message}`);
     }
 }
 
@@ -121,50 +121,68 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
     };
 
     const rows = [];
+    let totalRecords = 0;
+    let parsedRecords = 0;
+
+    // Dynamically import p-limit
+    const { default: pLimit } = await import('p-limit');
+    const limit = pLimit(config.asyncProcessing ? 10 : 1); // Control concurrency
 
     return new Promise((resolve, reject) => {
-        fs.createReadStream(filePath)
+        const stream = fs.createReadStream(filePath)
             .pipe(ndjson.parse())
             .on('data', (resourceData) => {
-                logDebug(`Processing resource: ${JSON.stringify(resourceData, null, 2)}`);
+                totalRecords++;
+                logDebug(`Processing resource ${totalRecords}: ${resourceData.id || 'N/A'}`);
 
-                try {
-                    if (resourceData.resourceType !== resource) {
-                        logDebug(`Skipping resource of type ${resourceData.resourceType} (expected ${resource})`);
-                        return;
-                    }
-
-                    const includeResource = whereClauses
-                        ? evaluateWhereClauses(resourceData, whereClauses, context)
-                        : true;
-
-                    logDebug(`Include resource: ${includeResource}`);
-
-                    if (includeResource) {
-                        const mainRow = processColumns(resourceData, columns, context);
-
-                        if (select && select.length > 0 && select.some(selectDef => selectDef.select)) {
-                            select.forEach(selectDef => {
-                                if (selectDef.select) {
-                                    const nestedRows = processNestedSelect(resourceData, selectDef, context);
-                                    nestedRows.forEach(nestedRow => {
-                                        rows.push({ ...mainRow, ...nestedRow });
-                                    });
-                                }
-                            });
-                        } else {
-                            rows.push(mainRow);
-                            logDebug(`Added row to rows array: ${JSON.stringify(mainRow, null, 2)}`);
+                limit(async () => {
+                    try {
+                        if (resourceData.resourceType !== resource) {
+                            logDebug(`Skipping resource of type ${resourceData.resourceType} (expected ${resource})`);
+                            return;
                         }
+
+                        const includeResource = whereClauses
+                            ? evaluateWhereClauses(resourceData, whereClauses, context)
+                            : true;
+
+                        logDebug(`Resource ${resourceData.id} included: ${includeResource}`);
+
+                        if (includeResource) {
+                            const mainRow = processColumns(resourceData, columns, context);
+
+                            if (select && select.length > 0 && select.some(selectDef => selectDef.select)) {
+                                select.forEach(selectDef => {
+                                    if (selectDef.select) {
+                                        const nestedRows = processNestedSelect(resourceData, selectDef, context);
+                                        nestedRows.forEach(nestedRow => {
+                                            rows.push({ ...mainRow, ...nestedRow });
+                                        });
+                                    }
+                                });
+                            } else {
+                                rows.push(mainRow);
+                                logDebug(`Added row to rows array: ${JSON.stringify(mainRow, null, 2)}`);
+                            }
+
+                            parsedRecords++;
+                        }
+
+                        // Log progress every 1000 records
+                        if (totalRecords % 1000 === 0) {
+                            console.log(`Processed ${totalRecords} records (${parsedRecords} parsed)`);
+                        }
+                    } catch (err) {
+                        console.error('Error processing resource:', err);
+                        console.error('Resource:', JSON.stringify(resourceData, null, 2));
                     }
-                } catch (err) {
-                    console.error('Error processing resource:', err);
-                    console.error('Resource:', JSON.stringify(resourceData, null, 2));
-                }
+                }).catch(reject);
             })
             .on('end', () => {
-                logDebug(`Finished processing NDJSON file. Processed ${rows.length} rows`);
-                resolve(rows);
+                limit(() => {
+                    console.log(`Finished processing NDJSON file. Total records: ${totalRecords}, Parsed records: ${parsedRecords}`);
+                    resolve(rows);
+                });
             })
             .on('error', (err) => {
                 console.error('Error reading NDJSON file:', err);

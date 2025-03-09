@@ -52,20 +52,20 @@ async function main() {
             const endTime = Date.now(); // End timer
             const timeTaken = (endTime - startTime) / 1000; // Convert to seconds
 
+            // Log summary
             console.log(`\nSummary for ViewDefinition "${viewDefinition.name}":`);
             console.log(`- Records Parsed: ${rows.length}`);
             console.log(`- Records Inserted: ${insertResult.inserted}`);
             console.log(`- Records Updated: ${insertResult.updated}`);
             console.log(`- Errors: ${insertResult.errors}`);
             console.log(`- Time Taken: ${timeTaken.toFixed(2)} seconds`);
-
+            console.log('----------------------------------------');
 
             console.log(`Data for ViewDefinition "${viewDefinition.name}" successfully upserted into DuckDB!`);
-            console.log('----------------------------------------');
-            console.log('----------------------------------------');
         }
     } catch (err) {
-        console.error('Error in main function:', err);
+        console.error('Error in main function:', err.message);
+        console.error('Error stack:', err.stack);
     }
 }
 
