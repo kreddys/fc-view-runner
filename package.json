@@ -1,0 +1,18 @@
+{
+  "name": "view-runner",
+  "version": "0.0.1",
+  "description": "Insert or Update FHIR resources to DuckDB database",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "duckdb": "^1.2.0",
+    "fhirpath": "^3.17.1",
+    "fs": "^0.0.1-security",
+    "ndjson": "^2.0.0"
+  }
+}

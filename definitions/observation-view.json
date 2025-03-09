@@ -1,0 +1,38 @@
+{
+    "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+    "name": "Observation",
+    "status": "draft",
+    "resource": "Observation",
+    "select": [
+        {
+            "column": [
+                {
+                    "path": "getResourceKey()",
+                    "name": "observation_id",
+                    "type": "id"
+                },
+                {
+                    "path": "status",
+                    "name": "status",
+                    "type": "code"
+                },
+                {
+                    "path": "code.text",
+                    "name": "code_text",
+                    "type": "string"
+                },
+                {
+                    "path": "valueQuantity.value",
+                    "name": "value",
+                    "type": "decimal"
+                }
+            ]
+        }
+    ],
+    "where": [
+        {
+            "path": "status = 'final'",
+            "description": "Filter for final observations only"
+        }
+    ]
+}

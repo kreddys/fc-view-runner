@@ -1,0 +1,38 @@
+{
+    "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+    "name": "Patient",
+    "status": "draft",
+    "resource": "Patient",
+    "select": [
+        {
+            "column": [
+                {
+                    "path": "getResourceKey()",
+                    "name": "patient_id",
+                    "type": "id"
+                },
+                {
+                    "path": "active",
+                    "name": "active",
+                    "type": "boolean"
+                },
+                {
+                    "path": "gender",
+                    "name": "gender",
+                    "type": "code"
+                },
+                {
+                    "path": "birthDate",
+                    "name": "birth_date",
+                    "type": "date"
+                }
+            ]
+        }
+    ],
+    "where": [
+        {
+            "path": "active = true",
+            "description": "Filter for active patients only"
+        }
+    ]
+}
