@@ -6,7 +6,7 @@ const config = require('./config');
 
 function logDebug(message) {
     if (config.debug) {
-        console.log(message);
+        console.log(`[DEBUG] ${message}`);
     }
 }
 
@@ -60,14 +60,14 @@ function processColumns(resource, columns, context) {
         row[col.name] = col.collection ? result : result.length > 0 ? result[0] : null;
     });
 
-    console.log('Processed row:', row); // Debug log
+    logDebug(`Processed row: ${JSON.stringify(row, null, 2)}`);
     return row;
 }
 
 function evaluateWhereClauses(resource, whereClauses, context) {
     return whereClauses.every((where) => {
         const result = evaluateFhirPath(resource, where.path, context);
-        console.log(`Evaluated where clause "${where.path}":`, result); // Debug log
+        logDebug(`Evaluated where clause "${where.path}": ${JSON.stringify(result, null, 2)}`);
         return result && result.length > 0 && result[0] === true;
     });
 }
@@ -88,7 +88,6 @@ function processNestedSelect(resource, nestedSelect, context) {
     parentElements.forEach(element => {
         const row = {};
 
-        // Process columns for this nested select
         if (nestedSelect.column) {
             nestedSelect.column.forEach(col => {
                 const result = element ?
@@ -98,11 +97,9 @@ function processNestedSelect(resource, nestedSelect, context) {
             });
         }
 
-        // Process further nested selects recursively
         if (nestedSelect.select) {
             nestedSelect.select.forEach(childSelect => {
                 const childRows = processNestedSelect(element || resource, childSelect, context);
-                // Combine child rows with current row
                 childRows.forEach(childRow => {
                     rows.push({ ...row, ...childRow });
                 });
@@ -116,11 +113,10 @@ function processNestedSelect(resource, nestedSelect, context) {
 }
 
 async function processNdjson(filePath, { columns, whereClauses, resource, constants, select }) {
-    // Create context with custom functions and constants
     const context = {
         userInvocationTable: {
             ...customFunctions,
-            ...createConstantFunctions(constants || []) // Handle undefined constants
+            ...createConstantFunctions(constants || [])
         }
     };
 
@@ -133,27 +129,20 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
                 logDebug(`Processing resource: ${JSON.stringify(resourceData, null, 2)}`);
 
                 try {
-                    // Skip resources that do not match the ViewDefinition's resource type
                     if (resourceData.resourceType !== resource) {
                         logDebug(`Skipping resource of type ${resourceData.resourceType} (expected ${resource})`);
                         return;
                     }
 
-                    // Evaluate where clauses (if provided)
                     const includeResource = whereClauses
                         ? evaluateWhereClauses(resourceData, whereClauses, context)
-                        : true; // Include all resources if no where clauses are provided
+                        : true;
 
-                    console.log('Include resource:', includeResource); // Debug log
+                    logDebug(`Include resource: ${includeResource}`);
 
                     if (includeResource) {
-                        // Process main columns
                         const mainRow = processColumns(resourceData, columns, context);
 
-                        // Debug the select field
-                        console.log('Select field:', select); // Debug log
-
-                        // Process nested selects (if provided)
                         if (select && select.length > 0 && select.some(selectDef => selectDef.select)) {
                             select.forEach(selectDef => {
                                 if (selectDef.select) {
@@ -164,8 +153,8 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
                                 }
                             });
                         } else {
-                            rows.push(mainRow); // Add the main row to the rows array
-                            console.log('Added row to rows array:', mainRow); // Debug log
+                            rows.push(mainRow);
+                            logDebug(`Added row to rows array: ${JSON.stringify(mainRow, null, 2)}`);
                         }
                     }
                 } catch (err) {
@@ -174,9 +163,7 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
                 }
             })
             .on('end', () => {
-                logDebug('Finished processing NDJSON file.');
-                logDebug(`Processed ${rows.length} rows`);
-                console.log('Rows to upsert:', rows); // Debug log
+                logDebug(`Finished processing NDJSON file. Processed ${rows.length} rows`);
                 resolve(rows);
             })
             .on('error', (err) => {
@@ -187,5 +174,5 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
 }
 
 module.exports = {
-    processNdjson,
+    processNdjson
 };

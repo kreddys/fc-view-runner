@@ -3,12 +3,8 @@ const path = require('path');
 const { parseViewDefinition } = require('./viewParser');
 const { processNdjson } = require('./ndjsonProcessor');
 const { createTable, upsertData } = require('./duckdbHandler');
+const config = require('./config');
 
-/**
- * Scan a folder for JSON files containing ViewDefinition resources.
- * @param {string} folderPath - Path to the folder.
- * @returns {Array} - Array of ViewDefinition objects.
- */
 function scanViewDefinitions(folderPath) {
     const viewDefinitions = [];
     const files = fs.readdirSync(folderPath);
@@ -31,39 +27,42 @@ function scanViewDefinitions(folderPath) {
     return viewDefinitions;
 }
 
-// In index.js, update the main function:
 async function main() {
     try {
-        // Get the database handler
         const dbHandler = await require('./duckdbHandler')();
 
-        // Example ViewDefinitions folder and NDJSON file path
-        const viewDefinitionsFolder = './definitions';
-        const ndjsonFilePath = './data/ndjson/sample_resources.ndjson';
-
-        // Scan the folder for ViewDefinition files
-        const viewDefinitions = scanViewDefinitions(viewDefinitionsFolder);
+        const viewDefinitions = scanViewDefinitions(config.viewDefinitionsFolder);
         console.log(`Found ${viewDefinitions.length} ViewDefinition(s) in folder.`);
 
-        // Process each ViewDefinition
         for (const viewDefinition of viewDefinitions) {
             console.log(`Processing ViewDefinition: ${viewDefinition.name}`);
 
-            // Parse ViewDefinition
+            const startTime = Date.now(); // Start timer
+
             const { columns, whereClauses, resource, constants, select } = parseViewDefinition(viewDefinition);
 
-            // Process NDJSON file
-            const rows = await processNdjson(ndjsonFilePath, { columns, whereClauses, resource, constants, select });
+            const rows = await processNdjson(config.ndjsonFilePath, { columns, whereClauses, resource, constants, select });
 
-            // Create table in DuckDB (if it doesn't exist)
             const tableName = viewDefinition.name.toLowerCase();
             await dbHandler.createTable(tableName, columns);
 
-            // Upsert data into DuckDB
-            const primaryKey = `${tableName}_id`; // e.g., "observation_id"
-            await dbHandler.upsertData(tableName, rows, primaryKey);
+            const primaryKey = `${tableName}_id`;
+            const insertResult = await dbHandler.upsertData(tableName, rows, primaryKey);
+
+            const endTime = Date.now(); // End timer
+            const timeTaken = (endTime - startTime) / 1000; // Convert to seconds
+
+            console.log(`\nSummary for ViewDefinition "${viewDefinition.name}":`);
+            console.log(`- Records Parsed: ${rows.length}`);
+            console.log(`- Records Inserted: ${insertResult.inserted}`);
+            console.log(`- Records Updated: ${insertResult.updated}`);
+            console.log(`- Errors: ${insertResult.errors}`);
+            console.log(`- Time Taken: ${timeTaken.toFixed(2)} seconds`);
+
 
             console.log(`Data for ViewDefinition "${viewDefinition.name}" successfully upserted into DuckDB!`);
+            console.log('----------------------------------------');
+            console.log('----------------------------------------');
         }
     } catch (err) {
         console.error('Error in main function:', err);

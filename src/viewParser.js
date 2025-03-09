@@ -2,34 +2,8 @@ const config = require('./config');
 
 function logDebug(message) {
     if (config.debug) {
-        console.log(message);
+        console.log(`[DEBUG] ${message}`);
     }
-}
-
-/**
- * Parse a FHIR ViewDefinition resource and extract all components.
- * @param {Object} viewDefinition - The ViewDefinition resource.
- * @returns {Object} - Parsed view definition components.
- */
-function parseViewDefinition(viewDefinition) {
-    logDebug(`Parsing ViewDefinition: ${JSON.stringify(viewDefinition, null, 2)}`);
-
-    validateViewDefinition(viewDefinition);
-
-    const metadata = extractMetadata(viewDefinition);
-    const constants = extractConstants(viewDefinition); // Extract constants
-    const { columns, nestedSelects } = extractSelects(viewDefinition.select);
-    const whereClauses = extractWhereClauses(viewDefinition);
-
-    return {
-        metadata,
-        constants, // Include constants in the returned object
-        columns,
-        nestedSelects,
-        whereClauses,
-        resource: viewDefinition.resource, // Ensure resource is extracted
-        select: viewDefinition.select // Ensure select is extracted
-    };
 }
 
 function validateViewDefinition(viewDefinition) {
@@ -80,7 +54,6 @@ function extractSelects(selects, parentPath = '') {
     selects.forEach((select, index) => {
         const currentPath = parentPath ? `${parentPath}.${index}` : String(index);
 
-        // Process columns (if provided)
         if (select.column) {
             select.column.forEach(col => {
                 validateColumnName(col.name);
@@ -96,7 +69,6 @@ function extractSelects(selects, parentPath = '') {
             });
         }
 
-        // Process nested selects (if provided)
         if (select.select || select.forEach || select.forEachOrNull) {
             nestedSelects.push({
                 path: currentPath,
@@ -106,7 +78,6 @@ function extractSelects(selects, parentPath = '') {
             });
         }
 
-        // Process unionAll (if provided)
         if (select.unionAll) {
             const unionResults = extractSelects(select.unionAll, `${currentPath}.union`);
             columns.push(...unionResults.columns);
@@ -129,6 +100,21 @@ function extractWhereClauses(viewDefinition) {
         path: where.path,
         description: where.description || ''
     }));
+}
+
+function parseViewDefinition(viewDefinition) {
+    logDebug(`Parsing ViewDefinition: ${JSON.stringify(viewDefinition, null, 2)}`);
+
+    validateViewDefinition(viewDefinition);
+
+    return {
+        metadata: extractMetadata(viewDefinition),
+        constants: extractConstants(viewDefinition),
+        ...extractSelects(viewDefinition.select),
+        whereClauses: extractWhereClauses(viewDefinition),
+        resource: viewDefinition.resource,
+        select: viewDefinition.select
+    };
 }
 
 module.exports = {
