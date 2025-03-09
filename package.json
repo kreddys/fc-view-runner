@@ -17,6 +17,7 @@
     "fs": "^0.0.1-security",
     "ndjson": "^2.0.0",
     "p-limit": "^6.2.0",
-    "view-runner": "file:"
+    "view-runner": "file:",
+    "winston": "^3.17.0"
   }
 }

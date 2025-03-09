@@ -2,7 +2,10 @@ const duckdb = require('@duckdb/node-api');
 const path = require('path');
 const fs = require('fs');
 const config = require('./config');
+const logger = require('./logger');
+const { logFailedRecord } = require('./utils');
 
+// Ensure DuckDB folder exists
 const duckdbFolder = path.resolve(config.duckdbFolder);
 if (!fs.existsSync(duckdbFolder)) {
     fs.mkdirSync(duckdbFolder, { recursive: true });
@@ -12,12 +15,9 @@ const dbPath = path.join(duckdbFolder, config.duckdbFileName);
 let instance;
 const connectionPool = []; // Pool of connections
 
-function logDebug(message) {
-    if (config.debug) {
-        console.log(`[DEBUG] ${new Date().toISOString()} - ${message}`);
-    }
-}
-
+/**
+ * Initializes the DuckDB instance and connection pool.
+ */
 async function initialize() {
     try {
         instance = await duckdb.DuckDBInstance.create(dbPath);
@@ -28,13 +28,17 @@ async function initialize() {
             connectionPool.push(connection);
         }
 
-        logDebug('DuckDB instance and connection pool initialized successfully');
+        logger.info('DuckDB instance and connection pool initialized successfully');
     } catch (error) {
-        console.error('Error initializing DuckDB:', error);
+        logger.error('Error initializing DuckDB:', error);
         throw error;
     }
 }
 
+/**
+ * Retrieves a connection from the connection pool.
+ * @returns {Promise<object>} A DuckDB connection.
+ */
 async function getConnection() {
     if (connectionPool.length === 0) {
         throw new Error('No connections available in the pool');
@@ -42,10 +46,19 @@ async function getConnection() {
     return connectionPool.pop(); // Get a connection from the pool
 }
 
+/**
+ * Releases a connection back to the connection pool.
+ * @param {object} connection - The DuckDB connection to release.
+ */
 async function releaseConnection(connection) {
     connectionPool.push(connection); // Return the connection to the pool
 }
 
+/**
+ * Checks if a table exists in the database.
+ * @param {string} tableName - The name of the table to check.
+ * @returns {Promise<boolean>} True if the table exists, false otherwise.
+ */
 async function tableExists(tableName) {
     const connection = await getConnection();
     try {
@@ -54,13 +67,19 @@ async function tableExists(tableName) {
         );
         return result.getRows()[0][0];
     } catch (error) {
-        console.error('Error checking if table exists:', error);
+        logger.error('Error checking if table exists:', error);
         throw error;
     } finally {
         await releaseConnection(connection);
     }
 }
 
+/**
+ * Maps FHIR data types to DuckDB data types.
+ * @param {string} fhirType - The FHIR data type.
+ * @param {Array} tags - Additional tags for type mapping.
+ * @returns {string} The corresponding DuckDB data type.
+ */
 function mapFhirTypeToDuckDBType(fhirType, tags = []) {
     const typeTag = tags.find(t => t.name === 'ansi/type');
     if (typeTag) return typeTag.value;
@@ -89,6 +108,11 @@ function mapFhirTypeToDuckDBType(fhirType, tags = []) {
     return typeMapping[fhirType] || 'VARCHAR';
 }
 
+/**
+ * Creates a table in DuckDB if it does not already exist.
+ * @param {string} tableName - The name of the table to create.
+ * @param {Array} columns - The columns to include in the table.
+ */
 async function createTable(tableName, columns) {
     const connection = await getConnection();
     try {
@@ -104,23 +128,30 @@ async function createTable(tableName, columns) {
 
             const primaryKey = `${tableName}_id`;
             const query = `CREATE TABLE ${tableName} (${columnDefs}, PRIMARY KEY (${primaryKey}));`;
-            logDebug(`Creating table with query: ${query}`);
+            logger.debug(`Creating table with query: ${query}`);
             await connection.run(query);
-            console.log(`Table "${tableName}" created successfully.`);
+            logger.info(`Table "${tableName}" created successfully.`);
         } else {
-            console.log(`Table "${tableName}" already exists. Skipping creation.`);
+            logger.info(`Table "${tableName}" already exists. Skipping creation.`);
         }
     } catch (error) {
-        console.error('Error creating table:', error);
+        logger.error('Error creating table:', error);
         throw error;
     } finally {
         await releaseConnection(connection);
     }
 }
 
+/**
+ * Upserts data into a table.
+ * @param {string} tableName - The name of the table.
+ * @param {Array} rows - The rows to upsert.
+ * @param {string} primaryKey - The primary key column.
+ * @returns {Promise<{inserted: number, updated: number, errors: number}>} The result of the upsert operation.
+ */
 async function upsertData(tableName, rows, primaryKey) {
     if (rows.length === 0) {
-        console.warn(`No rows to upsert for table ${tableName}`);
+        logger.warn(`No rows to upsert for table ${tableName}`);
         return { inserted: 0, updated: 0, errors: 0 };
     }
 
@@ -149,7 +180,7 @@ async function upsertData(tableName, rows, primaryKey) {
 
         for (let i = 0; i < rows.length; i += batchSize) {
             const batch = rows.slice(i, i + batchSize);
-            console.log(`Processing batch ${i / batchSize + 1} of ${Math.ceil(rows.length / batchSize)}`);
+            logger.info(`Processing batch ${i / batchSize + 1} of ${Math.ceil(rows.length / batchSize)}`);
 
             await Promise.all(batch.map(row => limit(async () => {
                 const connection = await getConnection(); // Get a connection from the pool
@@ -161,7 +192,7 @@ async function upsertData(tableName, rows, primaryKey) {
                 try {
                     // Validate primary key
                     if (!row[primaryKey]) {
-                        console.error(`Missing primary key in row: ${JSON.stringify(row, null, 2)}`);
+                        logger.error(`Missing primary key in row: ${JSON.stringify(row, null, 2)}`);
                         errors++;
                         return;
                     }
@@ -175,32 +206,38 @@ async function upsertData(tableName, rows, primaryKey) {
 
                     if (existsResult.getRows().length > 0) {
                         updated++;
-                        logDebug(`Updated row with ${primaryKey}: ${row[primaryKey]}`);
+                        logger.debug(`Updated row with ${primaryKey}: ${row[primaryKey]}`);
                     } else {
                         inserted++;
-                        logDebug(`Inserted row with ${primaryKey}: ${row[primaryKey]}`);
+                        logger.debug(`Inserted row with ${primaryKey}: ${row[primaryKey]}`);
                     }
                 } catch (error) {
                     errors++;
-                    console.error('Error upserting row:', error.message);
-                    console.error('Error stack:', error.stack);
-                    console.error('Row data:', JSON.stringify(row, null, 2));
+                    logger.error('Error upserting row:', error.message);
+                    logger.error('Row data:', JSON.stringify(row, null, 2));
+
+                    // Log the failed record to the log file
+                    logFailedRecord(tableName, row, error);
                 } finally {
                     await releaseConnection(connection); // Release the connection back to the pool
                 }
             })));
 
             // Log batch status
-            console.log(`Processed batch ${i / batchSize + 1}: Upserted ${i + batch.length} of ${rows.length} rows (Inserted: ${inserted}, Updated: ${updated}, Errors: ${errors})`);
+            logger.info(`Processed batch ${i / batchSize + 1}: Upserted ${i + batch.length} of ${rows.length} rows (Inserted: ${inserted}, Updated: ${updated}, Errors: ${errors})`);
         }
     } catch (error) {
-        console.error('Error in upsertData:', error);
+        logger.error('Error in upsertData:', error);
         throw error;
     }
 
     return { inserted, updated, errors };
 }
 
+/**
+ * Retrieves the database handler, initializing the DuckDB instance if necessary.
+ * @returns {Promise<{createTable: function, upsertData: function, tableExists: function}>} The database handler.
+ */
 async function getDatabaseHandler() {
     if (!instance) {
         await initialize();
