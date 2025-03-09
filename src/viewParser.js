@@ -12,7 +12,7 @@ function logDebug(message) {
  * @returns {Object} - Object containing columns and where clauses.
  */
 function parseViewDefinition(viewDefinition) {
-    logDebug('Parsing ViewDefinition:', viewDefinition);
+    logDebug(`Parsing ViewDefinition: ${JSON.stringify(viewDefinition, null, 2)}`);
 
     if (!viewDefinition.select || !Array.isArray(viewDefinition.select)) {
         throw new Error('Invalid ViewDefinition: Missing select definitions.');
@@ -43,8 +43,8 @@ function parseViewDefinition(viewDefinition) {
         });
     }
 
-    logDebug('Extracted columns:', columns);
-    logDebug('Extracted where clauses:', whereClauses);
+    logDebug(`Extracted columns: ${JSON.stringify(columns, null, 2)}`);
+    logDebug(`Extracted where clauses: ${JSON.stringify(whereClauses, null, 2)}`);
 
     return { columns, whereClauses };
 }

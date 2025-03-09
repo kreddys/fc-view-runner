@@ -28,7 +28,7 @@ function processNdjson(filePath, columns, whereClauses) {
         fs.createReadStream(filePath)
             .pipe(ndjson.parse())
             .on('data', (resource) => {
-                logDebug('Processing resource:', resource);
+                logDebug(`Processing resource: ${JSON.stringify(resource, null, 2)}`);
 
                 let includeResource = true;
                 whereClauses.forEach((where) => {
@@ -55,7 +55,7 @@ function processNdjson(filePath, columns, whereClauses) {
                                 fhirpath_r4_model,
                                 { userInvocationTable: customFunctions }
                             );
-                            logDebug(`Evaluated path "${col.path}":`, result);
+                            logDebug(`Evaluated path "${col.path}": ${JSON.stringify(result, null, 2)}`);
                             row[col.name] = col.collection ? result : result.length > 0 ? result[0] : null;
                         } catch (err) {
                             console.error(`Error evaluating path "${col.path}" on resource:`, resource);

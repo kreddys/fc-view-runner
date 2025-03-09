@@ -82,7 +82,7 @@ async function createTable(tableName, columns) {
 
     const query = `CREATE TABLE ${tableName} (${columnDefinitions});`;
 
-    logDebug('Creating table with query:', query);
+    logDebug(`Creating table with query: ${query}`);
 
     return new Promise((resolve, reject) => {
         db.run(query, (err) => {
@@ -107,7 +107,6 @@ function upsertData(tableName, rows, primaryKey) {
     return new Promise((resolve, reject) => {
         const connection = db.connect();
 
-        // Get the column names from the first row
         const columns = Object.keys(rows[0] || []);
         const placeholders = columns.map(() => '?').join(', ');
         const updateClause = columns.map((col) => `${col} = EXCLUDED.${col}`).join(', ');
@@ -119,32 +118,32 @@ function upsertData(tableName, rows, primaryKey) {
       DO UPDATE SET ${updateClause};
     `;
 
-        logDebug('Upserting data into table:', tableName);
-        logDebug('Upsert query:', query);
+        logDebug(`Upserting data into table: ${tableName}`);
+        logDebug(`Upsert query: ${query}`);
 
         let hasError = false;
 
         rows.forEach((row) => {
             const values = columns.map((col) => row[col]);
-            logDebug('Upserting row:', values);
+            logDebug(`Upserting row: ${JSON.stringify(values, null, 2)}`);
 
             connection.run(query, values, (err) => {
                 if (err) {
                     hasError = true;
                     console.error('Error upserting row:', err);
                     console.error('Table:', tableName);
-                    console.error('Row data:', row);
+                    console.error('Row data:', JSON.stringify(row, null, 2));
                     console.error('Query:', query);
-                    console.error('Values:', values);
+                    console.error('Values:', JSON.stringify(values, null, 2));
                     reject(err);
                 }
             });
         });
 
-        if (!hasError) {
-            logDebug('Data upserted successfully.');
-            resolve();
-        }
+        // if (!hasError) {
+        //     logDebug('Data upserted successfully.');
+        //     resolve();
+        // }
     });
 }
 
