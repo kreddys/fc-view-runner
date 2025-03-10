@@ -1,28 +1,19 @@
-# FHIR Data Processor with DuckDB
+# FHIR NDJSON to DuckDB View Runner
 
-This project processes FHIR (Fast Healthcare Interoperability Resources) data from NDJSON files and stores it in a DuckDB database. It supports both synchronous and asynchronous processing modes, with configurable concurrency and batch processing.
+This project processes FHIR (Fast Healthcare Interoperability Resources) data from NDJSON files and stores it in a DuckDB database. It uses SQL on FHIR ViewDefinitions to define how FHIR resources are parsed and transformed into a flat structure suitable for storage in a relational database.
 
-## Features
+## Key Features
 - **NDJSON File Processing**: Parses FHIR data from NDJSON files.
 - **DuckDB Integration**: Stores processed data in a DuckDB database.
-- **Async and Sync Modes**: Supports both synchronous and asynchronous processing.
-- **Configurable Concurrency**: Control the number of concurrent operations.
-- **Batch Processing**: Processes data in configurable batches for better performance.
+- **SQL on FHIR ViewDefinitions**: Defines how FHIR resources are parsed and transformed using FHIRPath.
+- **Real-Time Logging**: Provides progress updates during processing.
+- **Error Handling**: Skips invalid rows and logs them for debugging.
+- **Configurable Concurrency**: Supports both synchronous and asynchronous processing.
 
-## Environment Variables
-The following environment variables are used to configure the application:
-
-| Variable                | Description                                            | Default Value                                  |
-|-------------------------|--------------------------------------------------------|------------------------------------------------|
-| DEBUG                   | Enable debug logging (true or false).                 | false                                          |
-| VIEW_DEFINITIONS_FOLDER | Path to the folder containing ViewDefinition JSON files. | ./definitions                                  |
-| NDJSON_FILE_PATH        | Path to the NDJSON file containing FHIR data.          | ./data/ndjson/sample-data.ndjson               |
-| DUCKDB_FOLDER           | Folder where the DuckDB database will be stored.       | ./data/duckdb                                  |
-| DUCKDB_FILE_NAME        | Name of the DuckDB database file.                      | fhir_data.db                                   |
-| ASYNC_PROCESSING        | Enable asynchronous processing (true or false).        | true                                           |
-| CONNECTION_POOL_SIZE    | Number of connections in the DuckDB connection pool.  | 10                                             |
-| CONCURRENCY_LIMIT       | Maximum number of concurrent operations in async mode. | 10                                             |
-| BATCH_SIZE              | Number of rows to process in each batch.               | 1000                                           |
+## How It Works
+1. **ViewDefinitions**: JSON files define the structure of the data to be extracted from FHIR resources using FHIRPath expressions.
+2. **NDJSON Processing**: The application reads the NDJSON file line by line, parses each FHIR resource, and applies the ViewDefinition to extract data.
+3. **DuckDB Storage**: The extracted data is stored in a DuckDB database, with support for batch processing and upserts.
 
 ## Setup
 ### 1. Prerequisites
@@ -37,7 +28,7 @@ npm install
 ```
 
 ### 3. Configure Environment Variables
-Create a `.env` file in the root directory of the project and add the required environment variables. For example:
+Create a `.env` file in the root directory and add the following:
 
 ```env
 DEBUG=false
@@ -57,20 +48,16 @@ BATCH_SIZE=1000
 - Place your NDJSON file at the `NDJSON_FILE_PATH`.
 
 ## Usage
-### 1. Run the Application
+### Run the Application
 To start the application, run the following command:
 
 ```bash
 npm start
 ```
 
-### 2. Logs
-- The application logs progress and errors to the console.
+### Logs
+- Progress and errors are logged to the console in real-time.
 - If `DEBUG=true`, detailed debug logs will be printed.
-
-### 3. Output
-- Processed data is stored in the DuckDB database at the specified location (`DUCKDB_FOLDER/DUCKDB_FILE_NAME`).
-- Summary statistics (e.g., records parsed, inserted, updated, errors) are logged for each ViewDefinition.
 
 ## Example
 ### Input
@@ -80,34 +67,15 @@ npm start
 ### Output
 - **DuckDB Database**: A database file containing the processed data.
 
-### Sample Logs
-```log
-Found 2 ViewDefinition(s) in folder.
-Processing ViewDefinition: Observation
-Finished processing NDJSON file. Total records: 9878, Parsed records: 9878
-Table "observation" already exists. Skipping creation.
-Processing batch 1 of 10
-Processed batch 1: Upserted 1000 of 9878 rows (Inserted: 1000, Updated: 0, Errors: 0)
-...
-Finished processing NDJSON file. Total records: 9878, Parsed records: 9878
-```
-
 ## Troubleshooting
-### 1. Segmentation Fault
-If you encounter a segmentation fault:
-- Reduce the `CONCURRENCY_LIMIT` and `CONNECTION_POOL_SIZE` values.
-- Ensure the NDJSON file is properly formatted and does not contain invalid data.
-
-### 2. Missing Data
-If some rows are not processed:
-- Check the logs for errors related to invalid data.
-- Ensure the ViewDefinition matches the structure of the NDJSON file.
+- **Segmentation Fault**: Reduce `CONCURRENCY_LIMIT` and `CONNECTION_POOL_SIZE`.
+- **Missing Data**: Check logs for errors and ensure the ViewDefinition matches the NDJSON file structure.
 
 ## License
 This project is licensed under the MIT License. See the `LICENSE` file for details.
 
-## Contributing
-Contributions are welcome! Please open an issue or submit a pull request.
-
 ## Contact
-For questions or feedback, please contact [Your Name] at [your.email@example.com].
+For questions or feedback, please contact [Kishore Reddy] at [kishore5214@outlook.com].
+
+## SQL on FHIR ViewDefinitions
+This project follows the SQL on FHIR V2 ViewDefinition specification, which provides a standard format for defining tabular views of FHIR data. These views make FHIR data easier to consume and analyze using generic tools like SQL. For more details, refer to the SQL on FHIR specification.
