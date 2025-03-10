@@ -166,6 +166,9 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
     let parsedRecords = 0;
     let invalidRecords = 0;
 
+    // Track start time for time estimation
+    const startTime = Date.now();
+
     // Dynamically import p-limit
     const { default: pLimit } = await import('p-limit');
     const limit = pLimit(config.asyncProcessing ? config.concurrencyLimit : 1); // Control concurrency
@@ -176,7 +179,7 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
 
         rl.on('line', (line) => {
             totalRecords++;
-            logger.debug(`Processing resource ${totalRecords}`);
+            //logger.info(`Processing resource ${totalRecords}`); // Log progress in real-time
 
             limit(async () => {
                 try {
@@ -229,14 +232,23 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
 
                 // Log progress every 1000 records
                 if (totalRecords % 1000 === 0) {
+                    const elapsedTime = (Date.now() - startTime) / 1000; // Elapsed time in seconds
+                    const recordsPerSecond = totalRecords / elapsedTime; // Records processed per second
+                    const estimatedTotalTime = (totalRecords / recordsPerSecond).toFixed(2); // Estimated total time in seconds
+                    const estimatedTimeRemaining = (estimatedTotalTime - elapsedTime).toFixed(2); // Estimated time remaining in seconds
+
                     logger.info(`Processed ${totalRecords} records (${parsedRecords} parsed, ${invalidRecords} invalid)`);
+                    logger.info(`Elapsed time: ${elapsedTime.toFixed(2)} seconds`);
+                    logger.info(`Estimated time remaining: ${estimatedTimeRemaining} seconds`);
                 }
             }).catch(reject);
         });
 
         rl.on('close', () => {
             limit(() => {
+                const elapsedTime = (Date.now() - startTime) / 1000; // Elapsed time in seconds
                 logger.info(`Finished processing NDJSON file. Total records: ${totalRecords}, Parsed records: ${parsedRecords}, Invalid records: ${invalidRecords}`);
+                logger.info(`Total elapsed time: ${elapsedTime.toFixed(2)} seconds`);
                 resolve(rows);
             });
         });
