@@ -3,10 +3,10 @@
   "version": "0.0.1",
   "description": "Insert or Update FHIR resources to DuckDB database",
   "type": "module",
-  "main": "index.js",
+  "main": "main.js",
   "scripts": {
-    "start": "node --max-old-space-size=8192 src/index.js",
-    "dev": "node src/index.js",
+    "start": "node --max-old-space-size=8192 src/main.js",
+    "dev": "node src/main.js",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest", 
     "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch"
   },

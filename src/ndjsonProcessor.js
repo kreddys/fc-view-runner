@@ -7,15 +7,35 @@ import logger from './logger.js';
 import { logFailedRecord } from './utils.js';
 
 // Define custom functions for FHIRPath evaluation
+// Define custom functions for FHIRPath evaluation
 const customFunctions = {
     getResourceKey: {
-        fn: (inputs) => inputs.map((resource) => resource.id || null),
-        arity: { 0: [] },
+        fn: (inputs) => {
+            // inputs is an array of resources or references
+            return inputs.map((resource) => resource.id || null);
+        },
+        arity: { 0: [] }, // No parameters
     },
-    isActive: {
-        fn: (inputs) => inputs.map((resource) => resource.active || false),
-        arity: { 0: [] },
-    }
+    getReferenceKey: {
+        fn: (inputs, resourceType) => {
+            // inputs is an array of references
+            if (!inputs || inputs.length === 0) return [];
+
+            const reference = inputs[0];
+            if (!reference.reference) return [];
+
+            // Extract the reference ID (e.g., "Patient/123" -> "123")
+            const referenceId = reference.reference.split('/')[1];
+
+            // If a resourceType is provided, validate the reference type
+            if (resourceType && !reference.reference.startsWith(resourceType)) {
+                return []; // Return empty collection if the reference type doesn't match
+            }
+
+            return [referenceId]; // Return the reference ID
+        },
+        arity: { 0: [], 1: ['String'] }, // Optional resourceType parameter
+    },
 };
 
 /**
