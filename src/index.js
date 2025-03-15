@@ -1,9 +1,8 @@
-const fs = require('fs');
-const path = require('path');
-const { parseViewDefinition } = require('./viewParser');
-const { processNdjson } = require('./ndjsonProcessor');
-const { createTable, upsertData } = require('./duckdbHandler');
-const config = require('./config');
+import fs from 'fs';
+import path from 'path';
+import { parseViewDefinition } from './viewParser.js';
+import { processNdjson } from './ndjsonProcessor.js';
+import config from './config.js';
 
 function scanViewDefinitions(folderPath) {
     const viewDefinitions = [];
@@ -29,7 +28,7 @@ function scanViewDefinitions(folderPath) {
 
 async function main() {
     try {
-        const dbHandler = await require('./duckdbHandler')();
+        const dbHandler = await import('./duckdbHandler.js').then(module => module.default());
 
         const viewDefinitions = scanViewDefinitions(config.viewDefinitionsFolder);
         console.log(`Found ${viewDefinitions.length} ViewDefinition(s) in folder.`);

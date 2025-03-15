@@ -1,7 +1,7 @@
-const winston = require('winston');
-const path = require('path');
-const config = require('./config');
-const fs = require('fs');
+import winston from 'winston';
+import path from 'path';
+import config from './config.js';
+import fs from 'fs';
 
 // Ensure logs directory exists
 const logsDir = path.resolve(config.logsFolder || './logs');
@@ -29,4 +29,4 @@ const logger = winston.createLogger({
     ],
 });
 
-module.exports = logger;
+export default logger;

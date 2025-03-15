@@ -1,4 +1,4 @@
-const logger = require('./logger');
+import logger from './logger.js';
 
 /**
  * Logs a failed record to a log file.
@@ -6,7 +6,7 @@ const logger = require('./logger');
  * @param {object} record - The failed record (JSON object).
  * @param {Error} error - The error object containing details about the failure.
  */
-function logFailedRecord(tableName, record, error) {
+export function logFailedRecord(tableName, record, error) {
     try {
         const logEntry = {
             timestamp: new Date().toISOString(),
@@ -23,7 +23,3 @@ function logFailedRecord(tableName, record, error) {
         logger.error('Error logging failed record:', err);
     }
 }
-
-module.exports = {
-    logFailedRecord,
-};

@@ -1,6 +1,7 @@
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
 
-module.exports = {
+export default {
     debug: process.env.DEBUG === 'true', // Convert string to boolean
     asyncProcessing: process.env.ASYNC_PROCESSING === 'true', // Enable/disable async processing
     viewDefinitionsFolder: process.env.VIEW_DEFINITIONS_FOLDER,

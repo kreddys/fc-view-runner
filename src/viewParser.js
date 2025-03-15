@@ -1,4 +1,4 @@
-const config = require('./config');
+import config from './config.js';
 
 function logDebug(message) {
     if (config.debug) {
@@ -117,6 +117,4 @@ function parseViewDefinition(viewDefinition) {
     };
 }
 
-module.exports = {
-    parseViewDefinition
-};
+export { parseViewDefinition };

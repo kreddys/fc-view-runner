@@ -1,10 +1,10 @@
-const fs = require('fs');
-const readline = require('readline'); // Use readline to process the file line by line
-const fhirpath = require('fhirpath');
-const fhirpath_r4_model = require('fhirpath/fhir-context/r4');
-const config = require('./config');
-const logger = require('./logger');
-const { logFailedRecord } = require('./utils');
+import fs from 'fs';
+import readline from 'readline'; // Use readline to process the file line by line
+import fhirpath from 'fhirpath';
+import fhirpath_r4_model from 'fhirpath/fhir-context/r4/index.js';
+import config from './config.js';
+import logger from './logger.js';
+import { logFailedRecord } from './utils.js';
 
 // Define custom functions for FHIRPath evaluation
 const customFunctions = {
@@ -260,6 +260,4 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
     });
 }
 
-module.exports = {
-    processNdjson,
-};
+export { processNdjson };

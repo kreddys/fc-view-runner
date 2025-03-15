@@ -1,9 +1,9 @@
-const duckdb = require('@duckdb/node-api');
-const path = require('path');
-const fs = require('fs');
-const config = require('./config');
-const logger = require('./logger');
-const { logFailedRecord } = require('./utils');
+import duckdb from '@duckdb/node-api';
+import path from 'path';
+import fs from 'fs';
+import config from './config.js';
+import logger from './logger.js';
+import { logFailedRecord } from './utils.js';
 
 // Ensure DuckDB folder exists
 const duckdbFolder = path.resolve(config.duckdbFolder);
@@ -249,4 +249,8 @@ async function getDatabaseHandler() {
     };
 }
 
-module.exports = getDatabaseHandler;
+// Export individual functions
+export { createTable, upsertData, tableExists };
+
+// Export the default handler
+export default getDatabaseHandler;
