@@ -20,15 +20,24 @@ const connectionPool = []; // Pool of connections
  */
 async function initialize() {
     try {
-        instance = await duckdb.DuckDBInstance.create(dbPath);
-
-        // Create a pool of connections
-        for (let i = 0; i < config.connectionPoolSize; i++) {
-            const connection = await instance.connect();
-            connectionPool.push(connection);
+        // Check if the instance already exists (e.g., during testing)
+        if (!instance) {
+            instance = await duckdb.DuckDBInstance.create(dbPath);
         }
 
-        logger.info('DuckDB instance and connection pool initialized successfully');
+        // Check if the connection pool is already initialized
+        if (connectionPool.length === 0) {
+            // Use the connection pool size from the configuration
+            const poolSize = config.connectionPoolSize; // Get the pool size from config
+            for (let i = 0; i < poolSize; i++) {
+                const connection = await instance.connect();
+                connectionPool.push(connection);
+            }
+
+            logger.info(`DuckDB instance and connection pool (size: ${poolSize}) initialized successfully`);
+        } else {
+            logger.info('Connection pool already initialized. Skipping reinitialization.');
+        }
     } catch (error) {
         logger.error('Error initializing DuckDB:', error);
         throw error;
@@ -183,13 +192,16 @@ async function upsertData(tableName, rows, primaryKey) {
             logger.info(`Processing batch ${i / batchSize + 1} of ${Math.ceil(rows.length / batchSize)}`);
 
             await Promise.all(batch.map(row => limit(async () => {
-                const connection = await getConnection(); // Get a connection from the pool
-                const values = columns.map(col => {
-                    const value = row[col];
-                    return Array.isArray(value) ? JSON.stringify(value) : value;
-                });
-
+                let connection;
                 try {
+                    // Get a connection from the pool
+                    connection = await getConnection();
+
+                    const values = columns.map(col => {
+                        const value = row[col];
+                        return Array.isArray(value) ? JSON.stringify(value) : value;
+                    });
+
                     // Validate primary key
                     if (!row[primaryKey]) {
                         logger.error(`Missing primary key in row: ${JSON.stringify(row, null, 2)}`);
@@ -197,20 +209,22 @@ async function upsertData(tableName, rows, primaryKey) {
                         return;
                     }
 
-                    // Execute the upsert query
-                    await connection.run(query, values);
-
                     // Check if the primary key already exists in the table
                     const existsQuery = `SELECT 1 FROM ${tableName} WHERE ${primaryKey} = ?`;
                     const existsResult = await connection.runAndReadAll(existsQuery, [row[primaryKey]]);
 
                     if (existsResult.getRows().length > 0) {
+                        // Row exists, so this is an update
                         updated++;
-                        logger.debug(`Updated row with ${primaryKey}: ${row[primaryKey]}`);
+                        logger.debug(`Row with ${primaryKey}: ${row[primaryKey]} already exists. Updating...`);
                     } else {
+                        // Row does not exist, so this is an insert
                         inserted++;
-                        logger.debug(`Inserted row with ${primaryKey}: ${row[primaryKey]}`);
+                        logger.debug(`Row with ${primaryKey}: ${row[primaryKey]} does not exist. Inserting...`);
                     }
+
+                    // Execute the upsert query
+                    await connection.run(query, values);
                 } catch (error) {
                     errors++;
                     logger.error('Error upserting row:', error.message);
@@ -219,7 +233,10 @@ async function upsertData(tableName, rows, primaryKey) {
                     // Log the failed record to the log file
                     logFailedRecord(tableName, row, error);
                 } finally {
-                    await releaseConnection(connection); // Release the connection back to the pool
+                    // Release the connection back to the pool
+                    if (connection) {
+                        await releaseConnection(connection);
+                    }
                 }
             })));
 
@@ -245,7 +262,9 @@ async function getDatabaseHandler() {
     return {
         createTable,
         upsertData,
-        tableExists
+        tableExists,
+        getConnection, // Expose getConnection
+        releaseConnection // Expose releaseConnection
     };
 }
 
