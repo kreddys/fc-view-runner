@@ -7,7 +7,6 @@ import logger from './logger.js';
 import { logFailedRecord } from './utils.js';
 
 // Define custom functions for FHIRPath evaluation
-// Define custom functions for FHIRPath evaluation
 const customFunctions = {
     getResourceKey: {
         fn: (inputs) => {
@@ -83,7 +82,7 @@ function evaluateFhirPath(resource, path, context) {
  * @param {object} resource - The FHIR resource.
  * @param {Array} columns - The columns to process.
  * @param {object} context - The evaluation context.
- * @returns {object} The processed row.
+ * @returns {object|null} The processed row or null if no valid data is found.
  */
 function processColumns(resource, columns, context) {
     if (!columns || !Array.isArray(columns)) {
@@ -91,13 +90,20 @@ function processColumns(resource, columns, context) {
     }
 
     const row = {};
+    let hasData = false; // Track if any column has non-null data
+
     columns.forEach((col) => {
         const result = evaluateFhirPath(resource, col.path, context);
         row[col.name] = col.collection ? result : result.length > 0 ? result[0] : null;
+
+        // If any column has non-null data, mark the row as valid
+        if (row[col.name] !== null) {
+            hasData = true;
+        }
     });
 
-    logger.debug(`Processed row: ${JSON.stringify(row, null, 2)}`);
-    return row;
+    // Return null if the row has no data (all columns are null)
+    return hasData ? row : null;
 }
 
 /**
@@ -116,53 +122,6 @@ function evaluateWhereClauses(resource, whereClauses, context) {
 }
 
 /**
- * Processes nested select statements for a FHIR resource.
- * @param {object} resource - The FHIR resource.
- * @param {object} nestedSelect - The nested select definition.
- * @param {object} context - The evaluation context.
- * @returns {Array} The processed rows.
- */
-function processNestedSelect(resource, nestedSelect, context) {
-    const rows = [];
-    let parentElements = [];
-
-    if (nestedSelect.forEach) {
-        parentElements = evaluateFhirPath(resource, nestedSelect.forEach, context);
-    } else if (nestedSelect.forEachOrNull) {
-        parentElements = evaluateFhirPath(resource, nestedSelect.forEachOrNull, context);
-        if (parentElements.length === 0) {
-            parentElements = [null];
-        }
-    }
-
-    parentElements.forEach(element => {
-        const row = {};
-
-        if (nestedSelect.column) {
-            nestedSelect.column.forEach(col => {
-                const result = element ?
-                    evaluateFhirPath(element, col.path, context) :
-                    [];
-                row[col.name] = col.collection ? result : result.length > 0 ? result[0] : null;
-            });
-        }
-
-        if (nestedSelect.select) {
-            nestedSelect.select.forEach(childSelect => {
-                const childRows = processNestedSelect(element || resource, childSelect, context);
-                childRows.forEach(childRow => {
-                    rows.push({ ...row, ...childRow });
-                });
-            });
-        } else {
-            rows.push(row);
-        }
-    });
-
-    return rows;
-}
-
-/**
  * Processes an NDJSON file and extracts rows based on the provided configuration.
  * @param {string} filePath - The path to the NDJSON file.
  * @param {object} options - The processing options.
@@ -174,6 +133,14 @@ function processNestedSelect(resource, nestedSelect, context) {
  * @returns {Promise<Array>} The processed rows.
  */
 async function processNdjson(filePath, { columns, whereClauses, resource, constants, select }) {
+    logger.debug(`Starting processNdjson for resource: ${resource}`);
+    logger.debug(`Configuration:`, {
+        columns: JSON.stringify(columns),
+        whereClauses: JSON.stringify(whereClauses),
+        constants: JSON.stringify(constants),
+        select: JSON.stringify(select)
+    });
+
     const context = {
         userInvocationTable: {
             ...customFunctions,
@@ -186,12 +153,9 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
     let parsedRecords = 0;
     let invalidRecords = 0;
 
-    // Track start time for time estimation
     const startTime = Date.now();
-
-    // Dynamically import p-limit
     const { default: pLimit } = await import('p-limit');
-    const limit = pLimit(config.asyncProcessing ? config.concurrencyLimit : 1); // Control concurrency
+    const limit = pLimit(config.asyncProcessing ? config.concurrencyLimit : 1);
 
     return new Promise((resolve, reject) => {
         const stream = fs.createReadStream(filePath);
@@ -199,14 +163,13 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
 
         rl.on('line', (line) => {
             totalRecords++;
-            //logger.info(`Processing resource ${totalRecords}`); // Log progress in real-time
+            logger.debug(`Processing record #${totalRecords}`);
 
             limit(async () => {
                 try {
-                    // Parse the line as JSON
                     const resourceData = JSON.parse(line);
+                    logger.debug(`Parsed resource data for ID: ${resourceData.id}`);
 
-                    // Validate the resource data
                     if (typeof resourceData !== 'object' || resourceData === null) {
                         throw new Error('Invalid resource data: not a valid JSON object');
                     }
@@ -220,55 +183,36 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
                         ? evaluateWhereClauses(resourceData, whereClauses, context)
                         : true;
 
-                    logger.debug(`Resource ${resourceData.id} included: ${includeResource}`);
-
                     if (includeResource) {
-                        const mainRow = processColumns(resourceData, columns, context);
+                        const processedRows = processResource(resourceData, {
+                            columns,
+                            select,
+                            context
+                        });
 
-                        if (select && select.length > 0 && select.some(selectDef => selectDef.select)) {
-                            select.forEach(selectDef => {
-                                if (selectDef.select) {
-                                    const nestedRows = processNestedSelect(resourceData, selectDef, context);
-                                    nestedRows.forEach(nestedRow => {
-                                        rows.push({ ...mainRow, ...nestedRow });
-                                    });
-                                }
-                            });
-                        } else {
-                            rows.push(mainRow);
-                            logger.debug(`Added row to rows array: ${JSON.stringify(mainRow, null, 2)}`);
+                        if (processedRows && processedRows.length > 0) {
+                            rows.push(...processedRows);
                         }
-
                         parsedRecords++;
                     }
                 } catch (err) {
                     invalidRecords++;
                     logger.error(`Error processing resource ${totalRecords}:`, err.message);
-                    logger.error('Invalid resource data:', line);
-
-                    // Log the failed record to the log file
                     logFailedRecord(resource, { raw: line }, err);
-                }
-
-                // Log progress every 1000 records
-                if (totalRecords % 1000 === 0) {
-                    const elapsedTime = (Date.now() - startTime) / 1000; // Elapsed time in seconds
-                    const recordsPerSecond = totalRecords / elapsedTime; // Records processed per second
-                    const estimatedTotalTime = (totalRecords / recordsPerSecond).toFixed(2); // Estimated total time in seconds
-                    const estimatedTimeRemaining = (estimatedTotalTime - elapsedTime).toFixed(2); // Estimated time remaining in seconds
-
-                    logger.info(`Processed ${totalRecords} records (${parsedRecords} parsed, ${invalidRecords} invalid)`);
-                    logger.info(`Elapsed time: ${elapsedTime.toFixed(2)} seconds`);
-                    logger.info(`Estimated time remaining: ${estimatedTimeRemaining} seconds`);
                 }
             }).catch(reject);
         });
 
         rl.on('close', () => {
             limit(() => {
-                const elapsedTime = (Date.now() - startTime) / 1000; // Elapsed time in seconds
-                logger.info(`Finished processing NDJSON file. Total records: ${totalRecords}, Parsed records: ${parsedRecords}, Invalid records: ${invalidRecords}`);
-                logger.info(`Total elapsed time: ${elapsedTime.toFixed(2)} seconds`);
+                const elapsedTime = (Date.now() - startTime) / 1000;
+                logger.info(`Final processing results:`, {
+                    totalRecords,
+                    parsedRecords,
+                    invalidRecords,
+                    totalTime: `${elapsedTime.toFixed(2)}s`,
+                    rowsGenerated: rows.length
+                });
                 resolve(rows);
             });
         });
@@ -278,6 +222,58 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
             reject(err);
         });
     });
+}
+
+function processResource(resourceData, { columns, select, context }) {
+    // Process base columns first
+    const baseRow = columns ? processColumns(resourceData, columns, context) : {};
+    const resultRows = [];
+
+    // If no select definitions, return base row if it has data
+    if (!select || select.length === 0) {
+        return Object.keys(baseRow).length > 0 ? [baseRow] : [];
+    }
+
+    // Process non-forEach columns to build the base row
+    let mainRow = { ...baseRow };
+    select.forEach(selectDef => {
+        if (!selectDef.forEach && selectDef.column) {
+            const regularRow = processColumns(resourceData, selectDef.column, context);
+            if (regularRow) {
+                mainRow = { ...mainRow, ...regularRow };
+            }
+        }
+    });
+
+    // Process forEach sections
+    select.forEach(selectDef => {
+        if (selectDef.forEach) {
+            const elements = evaluateFhirPath(resourceData, selectDef.forEach, context);
+            logger.debug(`ForEach ${selectDef.forEach} returned ${elements ? elements.length : 0} elements`);
+
+            if (elements && elements.length > 0) {
+                elements.forEach(element => {
+                    if (element) {
+                        const nestedRow = processColumns(element, selectDef.column, context);
+                        if (nestedRow && Object.keys(nestedRow).length > 0) {
+                            resultRows.push({
+                                ...mainRow,
+                                ...nestedRow
+                            });
+                        }
+                    }
+                });
+            }
+        }
+    });
+
+    // If we have no forEach data but have base data, return just the base row
+    if (resultRows.length === 0 && Object.keys(mainRow).length > 0) {
+        resultRows.push(mainRow);
+    }
+
+    // Return only rows for this specific resource
+    return resultRows;
 }
 
 export { processNdjson };

@@ -15,7 +15,7 @@
     {
       "column": [
         {
-          "path": "location.location.getReferenceKey('Location')",
+          "path": "location.getReferenceKey('Location')",
           "name": "location_reference"
         }
       ],

@@ -15,15 +15,15 @@
     {
       "column": [
         {
-          "path": "identifier.use",
+          "path": "use",
           "name": "identifier_use"
         },
         {
-          "path": "identifier.system",
+          "path": "system",
           "name": "identifier_system"
         },
         {
-          "path": "identifier.value",
+          "path": "value",
           "name": "identifier_value"
         }
       ],

@@ -15,19 +15,15 @@
     {
       "column": [
         {
-          "path": "type.coding[0].system",
+          "path": "coding[0].system",
           "name": "type_coding_system"
         },
         {
-          "path": "type.coding[0].code",
+          "path": "coding[0].code",
           "name": "type_coding_code"
         },
         {
-          "path": "type.coding[0].display",
-          "name": "type_coding_display"
-        },
-        {
-          "path": "type.text",
+          "path": "text",
           "name": "type_text"
         }
       ],

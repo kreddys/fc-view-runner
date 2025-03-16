@@ -40,7 +40,22 @@ async function main() {
 
             const { columns, whereClauses, resource, constants, select } = parseViewDefinition(viewDefinition);
 
-            const rows = await processNdjson(config.ndjsonFilePath, { columns, whereClauses, resource, constants, select });
+            // Get base columns (columns not in forEach blocks)
+            const baseColumns = select.reduce((acc, selectDef) => {
+                // If this select definition doesn't have forEach, add its columns
+                if (!selectDef.forEach && selectDef.column) {
+                    acc.push(...selectDef.column);
+                }
+                return acc;
+            }, []);
+
+            const rows = await processNdjson(config.ndjsonFilePath, {
+                columns: baseColumns,  // Pass only base columns
+                whereClauses,
+                resource,
+                constants,
+                select
+            });
 
             const tableName = viewDefinition.name.toLowerCase();
             await dbHandler.createTable(tableName, columns);

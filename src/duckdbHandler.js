@@ -122,6 +122,8 @@ function mapFhirTypeToDuckDBType(fhirType, tags = []) {
  * @param {string} tableName - The name of the table to create.
  * @param {Array} columns - The columns to include in the table.
  */
+const columnTypes = {};
+
 async function createTable(tableName, columns) {
     const connection = await getConnection();
     try {
@@ -130,19 +132,18 @@ async function createTable(tableName, columns) {
         }
 
         if (!await tableExists(tableName)) {
-            // Create a sequence for the table
             const sequenceName = `${tableName}_id_seq`;
             await connection.run(`CREATE SEQUENCE ${sequenceName};`);
 
-            // Add the `id` column as the primary key
             const columnDefs = [
-                `id INTEGER PRIMARY KEY DEFAULT nextval('${sequenceName}')`, // Use SEQUENCE for auto-incrementing
+                `id INTEGER PRIMARY KEY DEFAULT nextval('${sequenceName}')`,
                 ...columns.map(col => {
                     const dbType = mapFhirTypeToDuckDBType(col.type, col.tags);
                     return col.collection ? `${col.name} ${dbType}[]` : `${col.name} ${dbType}`;
                 })
             ].join(', ');
 
+            // Removed unique constraint on patient_id
             const query = `CREATE TABLE ${tableName} (${columnDefs});`;
             logger.debug(`Creating table with query: ${query}`);
             await connection.run(query);
@@ -176,18 +177,25 @@ async function upsertData(tableName, rows, resourceKey) {
     let errors = 0;
 
     try {
-        const columns = Object.keys(rows[0]);
-        const placeholders = columns.map(() => '?').join(', ');
-        const updateClause = columns
-            .filter(col => col !== resourceKey)
-            .map(col => `${col} = EXCLUDED.${col}`)
-            .join(', ');
+        // Get table schema dynamically
+        const connection = await getConnection();
+        const tableSchema = await connection.runAndReadAll(`
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = '${tableName}'
+        `);
+        await releaseConnection(connection);
 
+        // Extract column names (excluding id)
+        const allColumns = tableSchema.getRows()
+            .map(row => row[0])
+            .filter(col => col !== 'id');
+
+        // Prepare SQL query for INSERT
+        const placeholders = allColumns.map(() => '?').join(', ');
         const query = `
-            INSERT INTO ${tableName} (${columns.join(', ')}) 
-            VALUES (${placeholders})
-            ON CONFLICT (id) 
-            DO UPDATE SET ${updateClause};
+            INSERT INTO ${tableName} (${allColumns.join(', ')}) 
+            VALUES (${placeholders});
         `;
 
         const { default: pLimit } = await import('p-limit');
@@ -203,35 +211,32 @@ async function upsertData(tableName, rows, resourceKey) {
                 try {
                     connection = await getConnection();
 
-                    const values = columns.map(col => {
-                        const value = row[col];
-                        return Array.isArray(value) ? JSON.stringify(value) : value;
-                    });
-
                     // Validate resource key
                     if (!row[resourceKey]) {
                         logger.error(`Missing resource key in row: ${JSON.stringify(row, null, 2)}`);
                         errors++;
-                        return;
+                        return; // Skip this row
                     }
 
-                    // Check if the resource key exists in the table
-                    const existsQuery = `SELECT id FROM ${tableName} WHERE ${resourceKey} = ?`;
-                    const existsResult = await connection.runAndReadAll(existsQuery, [row[resourceKey]]);
+                    // Ensure all columns are present with null defaults
+                    const values = allColumns.map(col => {
+                        const value = row[col];
+                        return value !== undefined ? value : null;
+                    });
 
-                    if (existsResult.getRows().length > 0) {
-                        updated++;
-                        logger.debug(`Row with ${resourceKey}: ${row[resourceKey]} already exists. Updating...`);
-                    } else {
-                        inserted++;
-                        logger.debug(`Row with ${resourceKey}: ${row[resourceKey]} does not exist. Inserting...`);
-                    }
-
+                    // Insert the row
                     await connection.run(query, values);
+                    inserted++;
                 } catch (error) {
                     errors++;
-                    logger.error('Error upserting row:', error.message);
-                    logger.error('Row data:', JSON.stringify(row, null, 2));
+                    logger.error('Error inserting row:', error.message);
+                    logger.error('Failed values:', JSON.stringify({
+                        patient_id: row[resourceKey],
+                        values: values.map((v, i) => ({
+                            column: allColumns[i],
+                            value: v
+                        }))
+                    }, null, 2));
                     logFailedRecord(tableName, row, error);
                 } finally {
                     if (connection) {

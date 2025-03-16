@@ -1,0 +1,62 @@
+{
+    "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+    "name": "Patient_Test",
+    "status": "draft",
+    "resource": "Patient",
+    "select": [
+        {
+            "column": [
+                {
+                    "path": "getResourceKey()",
+                    "name": "patient_id",
+                    "type": "string"
+                },
+                {
+                    "path": "active",
+                    "name": "active",
+                    "type": "boolean"
+                },
+                {
+                    "path": "gender",
+                    "name": "gender",
+                    "type": "string"
+                },
+                {
+                    "path": "birthDate",
+                    "name": "birth_date",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "forEach": "address",
+            "column": [
+                {
+                    "path": "line.join('\n')",
+                    "name": "street",
+                    "type": "string"
+                },
+                {
+                    "path": "city",
+                    "name": "city",
+                    "type": "string"
+                },
+                {
+                    "path": "state",
+                    "name": "state",
+                    "type": "string"
+                },
+                {
+                    "path": "postalCode",
+                    "name": "zip",
+                    "type": "string"
+                },
+                {
+                    "path": "country",
+                    "name": "country",
+                    "type": "string"
+                }
+            ]
+        }
+    ]
+}
