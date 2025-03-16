@@ -193,43 +193,49 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
 
                         if (select && select.length > 0) {
                             logger.debug(`Processing ${select.length} select definitions`);
-                            let combinedRow = mainRow || {};
+                            let rowsToAdd = [];
 
-                            select.forEach((selectDef, selectIndex) => {
-                                logger.debug(`Processing select definition #${selectIndex + 1}:`, selectDef);
-
-                                if (selectDef.forEach) {
-                                    const elements = evaluateFhirPath(resourceData, selectDef.forEach, context);
-                                    logger.debug(`ForEach ${selectDef.forEach} returned ${elements.length} elements`);
-
-                                    elements.forEach((element, elementIndex) => {
-                                        logger.debug(`Processing forEach element #${elementIndex + 1}:`, element);
-
-                                        const nestedRow = processColumns(element, selectDef.column, context);
-                                        logger.debug(`Nested row data:`, nestedRow);
-
-                                        if (nestedRow) {
-                                            // Combine with the existing combined row
-                                            combinedRow = { ...combinedRow, ...nestedRow };
-                                            logger.debug(`Updated combined row:`, combinedRow);
-                                        }
-                                    });
-                                } else if (selectDef.column) {
-                                    logger.debug(`Processing regular columns`);
+                            // First, process non-forEach selects
+                            let baseRow = { ...mainRow };
+                            select.forEach(selectDef => {
+                                if (!selectDef.forEach && selectDef.column) {
                                     const regularRow = processColumns(resourceData, selectDef.column, context);
-
                                     if (regularRow) {
-                                        // Combine with the existing combined row
-                                        combinedRow = { ...combinedRow, ...regularRow };
-                                        logger.debug(`Updated combined row with regular columns:`, combinedRow);
+                                        baseRow = { ...baseRow, ...regularRow };
                                     }
                                 }
                             });
 
-                            // Only push the combined row once after all processing is complete
-                            if (Object.keys(combinedRow).length > 0) {
-                                logger.debug(`Adding final combined row:`, combinedRow);
-                                rows.push(combinedRow);
+                            // Then, process forEach selects
+                            let hasForEachData = false;
+                            select.forEach(selectDef => {
+                                if (selectDef.forEach) {
+                                    const elements = evaluateFhirPath(resourceData, selectDef.forEach, context);
+                                    logger.debug(`ForEach ${selectDef.forEach} returned ${elements.length} elements`);
+
+                                    if (elements && elements.length > 0) {
+                                        hasForEachData = true;
+                                        elements.forEach(element => {
+                                            const nestedRow = processColumns(element, selectDef.column, context);
+                                            if (nestedRow) {
+                                                rowsToAdd.push({
+                                                    ...baseRow,
+                                                    ...nestedRow
+                                                });
+                                            }
+                                        });
+                                    }
+                                }
+                            });
+
+                            // If no forEach data was found, add the base row
+                            if (!hasForEachData && Object.keys(baseRow).length > 0) {
+                                rowsToAdd.push(baseRow);
+                            }
+
+                            // If we have rows to add, add them
+                            if (rowsToAdd.length > 0) {
+                                rows.push(...rowsToAdd);
                             }
                         } else if (mainRow) {
                             logger.debug(`Adding main row only:`, mainRow);
