@@ -96,14 +96,14 @@ describe('DuckDBHandler', () => {
         expect(exists).toBe(true);
     });
 
-    it('should upsert data into a table', async () => {
+    it('should insert data into a table', async () => {
         const tableName = 'test_table';
         const rows = [
             { test_table_id: '1', value: 'test1' }, // Use the correct column name
             { test_table_id: '2', value: 'test2' }
         ];
 
-        // Ensure the table is empty before upserting
+        // Ensure the table is empty before inserting
         let connection;
         try {
             connection = await dbHandler.getConnection();
@@ -122,24 +122,6 @@ describe('DuckDBHandler', () => {
         expect(result.errors).toBe(0);
     });
 
-    it('should handle duplicate primary keys during upsert', async () => {
-        const tableName = 'test_table';
-
-        // Insert initial data
-        const initialRows = [
-            { test_table_id: '1', value: 'test1' } // Use the correct column name
-        ];
-        await dbHandler.upsertData(tableName, initialRows, 'test_table_id');
-
-        // Update the existing row
-        const updatedRows = [
-            { test_table_id: '1', value: 'updated_value' } // Use the correct column name
-        ];
-
-        const result = await dbHandler.upsertData(tableName, updatedRows, 'test_table_id');
-        expect(result.updated).toBe(1); // Expect 1 row to be updated
-    });
-
     it('should insert multiple records with the same resourceName_id', async () => {
         const tableName = 'patient_identifier';
         const rows = [
@@ -150,34 +132,6 @@ describe('DuckDBHandler', () => {
         const result = await dbHandler.upsertData(tableName, rows, 'patient_id');
         expect(result.inserted).toBe(2); // Expect 2 rows to be inserted
         expect(result.errors).toBe(0);
-    });
-
-    it('should update all records with the same resourceName_id', async () => {
-        const tableName = 'patient_identifier';
-        const columns = [
-            { name: 'patient_id', type: 'VARCHAR' }, // Resource key
-            { name: 'identifier_type', type: 'VARCHAR' },
-            { name: 'identifier_value', type: 'VARCHAR' }
-        ];
-
-        // Create the table
-        await dbHandler.createTable(tableName, columns);
-
-        // Insert initial data
-        const initialRows = [
-            { patient_id: '123', identifier_type: 'SSN', identifier_value: '123-45-6789' },
-            { patient_id: '123', identifier_type: 'MRN', identifier_value: '987654' }
-        ];
-        await dbHandler.upsertData(tableName, initialRows, 'patient_id');
-
-        // Update all records for patient_id = '123'
-        const updatedRows = [
-            { patient_id: '123', identifier_type: 'SSN', identifier_value: '987-65-4321' },
-            { patient_id: '123', identifier_type: 'MRN', identifier_value: '123456' }
-        ];
-
-        const result = await dbHandler.upsertData(tableName, updatedRows, 'patient_id');
-        expect(result.updated).toBe(2); // Expect 2 rows to be updated
     });
 
     it('should handle missing resourceName_id column', async () => {

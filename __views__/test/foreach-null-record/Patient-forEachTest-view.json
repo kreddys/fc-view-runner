@@ -8,19 +8,23 @@
             "column": [
                 {
                     "path": "getResourceKey()",
-                    "name": "patient_id"
+                    "name": "patient_id",
+                    "type": "string"
                 },
                 {
                     "path": "active",
-                    "name": "active"
+                    "name": "active",
+                    "type": "boolean"
                 },
                 {
                     "path": "gender",
-                    "name": "gender"
+                    "name": "gender",
+                    "type": "string"
                 },
                 {
                     "path": "birthDate",
-                    "name": "birth_date"
+                    "name": "birth_date",
+                    "type": "string"
                 }
             ]
         },
@@ -29,23 +33,28 @@
             "column": [
                 {
                     "path": "line.join('\n')",
-                    "name": "street"
+                    "name": "street",
+                    "type": "string"
                 },
                 {
                     "path": "city",
-                    "name": "city"
+                    "name": "city",
+                    "type": "string"
                 },
                 {
                     "path": "state",
-                    "name": "state"
+                    "name": "state",
+                    "type": "string"
                 },
                 {
                     "path": "postalCode",
-                    "name": "zip"
+                    "name": "zip",
+                    "type": "string"
                 },
                 {
                     "path": "country",
-                    "name": "country"
+                    "name": "country",
+                    "type": "string"
                 }
             ]
         }
