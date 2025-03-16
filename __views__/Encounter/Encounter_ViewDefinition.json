@@ -1,0 +1,40 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Encounter",
+  "status": "draft",
+  "resource": "Encounter",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "encounter_id"
+        },
+        {
+          "path": "status",
+          "name": "status"
+        },
+        {
+          "path": "class.code",
+          "name": "class_code"
+        },
+        {
+          "path": "subject.getReferenceKey('Patient')",
+          "name": "subject_reference"
+        },
+        {
+          "path": "period.start",
+          "name": "period_start"
+        },
+        {
+          "path": "period.end",
+          "name": "period_end"
+        },
+        {
+          "path": "serviceProvider.getReferenceKey('Organization')",
+          "name": "service_provider_reference"
+        }
+      ]
+    }
+  ]
+}

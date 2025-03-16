@@ -45,8 +45,10 @@ async function main() {
             const tableName = viewDefinition.name.toLowerCase();
             await dbHandler.createTable(tableName, columns);
 
-            const primaryKey = `${tableName}_id`;
-            const insertResult = await dbHandler.upsertData(tableName, rows, primaryKey);
+            // Determine the resourceKey dynamically
+            const resourceKey = `${resource.toLowerCase()}_id`; // e.g., "patient_id" for "Patient" resource
+
+            const upsertResult = await dbHandler.upsertData(tableName, rows, resourceKey);
 
             const endTime = Date.now(); // End timer
             const timeTaken = (endTime - startTime) / 1000; // Convert to seconds
@@ -54,9 +56,9 @@ async function main() {
             // Log summary
             console.log(`\nSummary for ViewDefinition "${viewDefinition.name}":`);
             console.log(`- Records Parsed: ${rows.length}`);
-            console.log(`- Records Inserted: ${insertResult.inserted}`);
-            console.log(`- Records Updated: ${insertResult.updated}`);
-            console.log(`- Errors: ${insertResult.errors}`);
+            console.log(`- Records Inserted: ${upsertResult.inserted}`);
+            console.log(`- Records Updated: ${upsertResult.updated}`);
+            console.log(`- Errors: ${upsertResult.errors}`);
             console.log(`- Time Taken: ${timeTaken.toFixed(2)} seconds`);
             console.log('----------------------------------------');
 
