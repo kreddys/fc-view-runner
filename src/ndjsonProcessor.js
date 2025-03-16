@@ -225,10 +225,6 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
 }
 
 function processResource(resourceData, { columns, select, context }) {
-    // Get the resource type and create the dynamic resource key name
-    const resourceType = resourceData.resourceType;
-    const resourceKeyName = `${resourceType.toLowerCase()}_id`;
-
     // Process base columns first
     const baseRow = columns ? processColumns(resourceData, columns, context) : {};
     const resultRows = [];
@@ -250,14 +246,12 @@ function processResource(resourceData, { columns, select, context }) {
     });
 
     // Process forEach sections
-    let hasForEachData = false;
     select.forEach(selectDef => {
         if (selectDef.forEach) {
             const elements = evaluateFhirPath(resourceData, selectDef.forEach, context);
             logger.debug(`ForEach ${selectDef.forEach} returned ${elements ? elements.length : 0} elements`);
 
             if (elements && elements.length > 0) {
-                hasForEachData = true;
                 elements.forEach(element => {
                     if (element) {
                         const nestedRow = processColumns(element, selectDef.column, context);
@@ -273,13 +267,13 @@ function processResource(resourceData, { columns, select, context }) {
         }
     });
 
-    // If we have base data but no forEach data was processed, return just the base row
-    if (!hasForEachData && Object.keys(mainRow).length > 0) {
+    // If we have no forEach data but have base data, return just the base row
+    if (resultRows.length === 0 && Object.keys(mainRow).length > 0) {
         resultRows.push(mainRow);
     }
 
-    // Filter rows based on the dynamic resource key
-    return resultRows.filter(row => row[resourceKeyName] === resourceData.id);
+    // Return only rows for this specific resource
+    return resultRows;
 }
 
 export { processNdjson };
