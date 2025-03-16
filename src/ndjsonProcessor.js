@@ -157,8 +157,6 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
     const { default: pLimit } = await import('p-limit');
     const limit = pLimit(config.asyncProcessing ? config.concurrencyLimit : 1);
 
-    logger.debug(`Initialized with concurrency limit: ${config.asyncProcessing ? config.concurrencyLimit : 1}`);
-
     return new Promise((resolve, reject) => {
         const stream = fs.createReadStream(filePath);
         const rl = readline.createInterface({ input: stream });
@@ -185,85 +183,22 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
                         ? evaluateWhereClauses(resourceData, whereClauses, context)
                         : true;
 
-                    logger.debug(`Resource ${resourceData.id} included: ${includeResource}`);
-
                     if (includeResource) {
-                        const mainRow = processColumns(resourceData, columns, context);
-                        logger.debug(`Main row data:`, mainRow);
+                        const processedRows = processResource(resourceData, {
+                            columns,
+                            select,
+                            context
+                        });
 
-                        if (select && select.length > 0) {
-                            logger.debug(`Processing ${select.length} select definitions`);
-                            let rowsToAdd = [];
-
-                            // First, process non-forEach selects
-                            let baseRow = { ...mainRow };
-                            select.forEach(selectDef => {
-                                if (!selectDef.forEach && selectDef.column) {
-                                    const regularRow = processColumns(resourceData, selectDef.column, context);
-                                    if (regularRow) {
-                                        baseRow = { ...baseRow, ...regularRow };
-                                    }
-                                }
-                            });
-
-                            // Then, process forEach selects
-                            let hasForEachData = false;
-                            select.forEach(selectDef => {
-                                if (selectDef.forEach) {
-                                    const elements = evaluateFhirPath(resourceData, selectDef.forEach, context);
-                                    logger.debug(`ForEach ${selectDef.forEach} returned ${elements.length} elements`);
-
-                                    if (elements && elements.length > 0) {
-                                        hasForEachData = true;
-                                        elements.forEach(element => {
-                                            const nestedRow = processColumns(element, selectDef.column, context);
-                                            if (nestedRow) {
-                                                rowsToAdd.push({
-                                                    ...baseRow,
-                                                    ...nestedRow
-                                                });
-                                            }
-                                        });
-                                    }
-                                }
-                            });
-
-                            // If no forEach data was found, add the base row
-                            if (!hasForEachData && Object.keys(baseRow).length > 0) {
-                                rowsToAdd.push(baseRow);
-                            }
-
-                            // If we have rows to add, add them
-                            if (rowsToAdd.length > 0) {
-                                rows.push(...rowsToAdd);
-                            }
-                        } else if (mainRow) {
-                            logger.debug(`Adding main row only:`, mainRow);
-                            rows.push(mainRow);
+                        if (processedRows && processedRows.length > 0) {
+                            rows.push(...processedRows);
                         }
-
                         parsedRecords++;
                     }
                 } catch (err) {
                     invalidRecords++;
                     logger.error(`Error processing resource ${totalRecords}:`, err.message);
-                    logger.error('Invalid resource data:', line);
                     logFailedRecord(resource, { raw: line }, err);
-                }
-
-                if (totalRecords % 1000 === 0) {
-                    const elapsedTime = (Date.now() - startTime) / 1000;
-                    const recordsPerSecond = totalRecords / elapsedTime;
-                    const estimatedTotalTime = (totalRecords / recordsPerSecond).toFixed(2);
-                    const estimatedTimeRemaining = (estimatedTotalTime - elapsedTime).toFixed(2);
-
-                    logger.info(`Progress stats:`, {
-                        totalRecords,
-                        parsedRecords,
-                        invalidRecords,
-                        elapsedTime: `${elapsedTime.toFixed(2)}s`,
-                        estimatedRemaining: `${estimatedTimeRemaining}s`
-                    });
                 }
             }).catch(reject);
         });
@@ -278,7 +213,6 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
                     totalTime: `${elapsedTime.toFixed(2)}s`,
                     rowsGenerated: rows.length
                 });
-                logger.debug(`Final rows:`, rows);
                 resolve(rows);
             });
         });
@@ -288,6 +222,64 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
             reject(err);
         });
     });
+}
+
+function processResource(resourceData, { columns, select, context }) {
+    // Get the resource type and create the dynamic resource key name
+    const resourceType = resourceData.resourceType;
+    const resourceKeyName = `${resourceType.toLowerCase()}_id`;
+
+    // Process base columns first
+    const baseRow = columns ? processColumns(resourceData, columns, context) : {};
+    const resultRows = [];
+
+    // If no select definitions, return base row if it has data
+    if (!select || select.length === 0) {
+        return Object.keys(baseRow).length > 0 ? [baseRow] : [];
+    }
+
+    // Process non-forEach columns to build the base row
+    let mainRow = { ...baseRow };
+    select.forEach(selectDef => {
+        if (!selectDef.forEach && selectDef.column) {
+            const regularRow = processColumns(resourceData, selectDef.column, context);
+            if (regularRow) {
+                mainRow = { ...mainRow, ...regularRow };
+            }
+        }
+    });
+
+    // Process forEach sections
+    let hasForEachData = false;
+    select.forEach(selectDef => {
+        if (selectDef.forEach) {
+            const elements = evaluateFhirPath(resourceData, selectDef.forEach, context);
+            logger.debug(`ForEach ${selectDef.forEach} returned ${elements ? elements.length : 0} elements`);
+
+            if (elements && elements.length > 0) {
+                hasForEachData = true;
+                elements.forEach(element => {
+                    if (element) {
+                        const nestedRow = processColumns(element, selectDef.column, context);
+                        if (nestedRow && Object.keys(nestedRow).length > 0) {
+                            resultRows.push({
+                                ...mainRow,
+                                ...nestedRow
+                            });
+                        }
+                    }
+                });
+            }
+        }
+    });
+
+    // If we have base data but no forEach data was processed, return just the base row
+    if (!hasForEachData && Object.keys(mainRow).length > 0) {
+        resultRows.push(mainRow);
+    }
+
+    // Filter rows based on the dynamic resource key
+    return resultRows.filter(row => row[resourceKeyName] === resourceData.id);
 }
 
 export { processNdjson };
