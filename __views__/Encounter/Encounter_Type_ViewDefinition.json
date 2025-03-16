@@ -1,0 +1,37 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Encounter_Type",
+  "status": "draft",
+  "resource": "Encounter",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "encounter_id"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "type.coding[0].system",
+          "name": "type_coding_system"
+        },
+        {
+          "path": "type.coding[0].code",
+          "name": "type_coding_code"
+        },
+        {
+          "path": "type.coding[0].display",
+          "name": "type_coding_display"
+        },
+        {
+          "path": "type.text",
+          "name": "type_text"
+        }
+      ],
+      "forEach": "type"
+    }
+  ]
+}

@@ -130,13 +130,20 @@ async function createTable(tableName, columns) {
         }
 
         if (!await tableExists(tableName)) {
-            const columnDefs = columns.map(col => {
-                const dbType = mapFhirTypeToDuckDBType(col.type, col.tags);
-                return col.collection ? `${col.name} ${dbType}[]` : `${col.name} ${dbType}`;
-            }).join(', ');
+            // Create a sequence for the table
+            const sequenceName = `${tableName}_id_seq`;
+            await connection.run(`CREATE SEQUENCE ${sequenceName};`);
 
-            const primaryKey = `${tableName}_id`;
-            const query = `CREATE TABLE ${tableName} (${columnDefs}, PRIMARY KEY (${primaryKey}));`;
+            // Add the `id` column as the primary key
+            const columnDefs = [
+                `id INTEGER PRIMARY KEY DEFAULT nextval('${sequenceName}')`, // Use SEQUENCE for auto-incrementing
+                ...columns.map(col => {
+                    const dbType = mapFhirTypeToDuckDBType(col.type, col.tags);
+                    return col.collection ? `${col.name} ${dbType}[]` : `${col.name} ${dbType}`;
+                })
+            ].join(', ');
+
+            const query = `CREATE TABLE ${tableName} (${columnDefs});`;
             logger.debug(`Creating table with query: ${query}`);
             await connection.run(query);
             logger.info(`Table "${tableName}" created successfully.`);
@@ -155,10 +162,10 @@ async function createTable(tableName, columns) {
  * Upserts data into a table.
  * @param {string} tableName - The name of the table.
  * @param {Array} rows - The rows to upsert.
- * @param {string} primaryKey - The primary key column.
+ * @param {string} resourceKey - The resource name.
  * @returns {Promise<{inserted: number, updated: number, errors: number}>} The result of the upsert operation.
  */
-async function upsertData(tableName, rows, primaryKey) {
+async function upsertData(tableName, rows, resourceKey) {
     if (rows.length === 0) {
         logger.warn(`No rows to upsert for table ${tableName}`);
         return { inserted: 0, updated: 0, errors: 0 };
@@ -172,20 +179,20 @@ async function upsertData(tableName, rows, primaryKey) {
         const columns = Object.keys(rows[0]);
         const placeholders = columns.map(() => '?').join(', ');
         const updateClause = columns
-            .filter(col => col !== primaryKey)
+            .filter(col => col !== resourceKey)
             .map(col => `${col} = EXCLUDED.${col}`)
             .join(', ');
 
         const query = `
             INSERT INTO ${tableName} (${columns.join(', ')}) 
             VALUES (${placeholders})
-            ON CONFLICT (${primaryKey}) 
+            ON CONFLICT (id) 
             DO UPDATE SET ${updateClause};
         `;
 
         const { default: pLimit } = await import('p-limit');
-        const limit = pLimit(config.asyncProcessing ? config.concurrencyLimit : 1); // Control concurrency
-        const batchSize = config.batchSize; // Process rows in batches
+        const limit = pLimit(config.asyncProcessing ? config.concurrencyLimit : 1);
+        const batchSize = config.batchSize;
 
         for (let i = 0; i < rows.length; i += batchSize) {
             const batch = rows.slice(i, i + batchSize);
@@ -194,7 +201,6 @@ async function upsertData(tableName, rows, primaryKey) {
             await Promise.all(batch.map(row => limit(async () => {
                 let connection;
                 try {
-                    // Get a connection from the pool
                     connection = await getConnection();
 
                     const values = columns.map(col => {
@@ -202,45 +208,38 @@ async function upsertData(tableName, rows, primaryKey) {
                         return Array.isArray(value) ? JSON.stringify(value) : value;
                     });
 
-                    // Validate primary key
-                    if (!row[primaryKey]) {
-                        logger.error(`Missing primary key in row: ${JSON.stringify(row, null, 2)}`);
+                    // Validate resource key
+                    if (!row[resourceKey]) {
+                        logger.error(`Missing resource key in row: ${JSON.stringify(row, null, 2)}`);
                         errors++;
                         return;
                     }
 
-                    // Check if the primary key already exists in the table
-                    const existsQuery = `SELECT 1 FROM ${tableName} WHERE ${primaryKey} = ?`;
-                    const existsResult = await connection.runAndReadAll(existsQuery, [row[primaryKey]]);
+                    // Check if the resource key exists in the table
+                    const existsQuery = `SELECT id FROM ${tableName} WHERE ${resourceKey} = ?`;
+                    const existsResult = await connection.runAndReadAll(existsQuery, [row[resourceKey]]);
 
                     if (existsResult.getRows().length > 0) {
-                        // Row exists, so this is an update
                         updated++;
-                        logger.debug(`Row with ${primaryKey}: ${row[primaryKey]} already exists. Updating...`);
+                        logger.debug(`Row with ${resourceKey}: ${row[resourceKey]} already exists. Updating...`);
                     } else {
-                        // Row does not exist, so this is an insert
                         inserted++;
-                        logger.debug(`Row with ${primaryKey}: ${row[primaryKey]} does not exist. Inserting...`);
+                        logger.debug(`Row with ${resourceKey}: ${row[resourceKey]} does not exist. Inserting...`);
                     }
 
-                    // Execute the upsert query
                     await connection.run(query, values);
                 } catch (error) {
                     errors++;
                     logger.error('Error upserting row:', error.message);
                     logger.error('Row data:', JSON.stringify(row, null, 2));
-
-                    // Log the failed record to the log file
                     logFailedRecord(tableName, row, error);
                 } finally {
-                    // Release the connection back to the pool
                     if (connection) {
                         await releaseConnection(connection);
                     }
                 }
             })));
 
-            // Log batch status
             logger.info(`Processed batch ${i / batchSize + 1}: Upserted ${i + batch.length} of ${rows.length} rows (Inserted: ${inserted}, Updated: ${updated}, Errors: ${errors})`);
         }
     } catch (error) {

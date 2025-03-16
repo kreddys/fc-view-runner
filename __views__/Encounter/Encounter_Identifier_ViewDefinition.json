@@ -1,0 +1,33 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Encounter_Identifier",
+  "status": "draft",
+  "resource": "Encounter",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "encounter_id"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "identifier.use",
+          "name": "identifier_use"
+        },
+        {
+          "path": "identifier.system",
+          "name": "identifier_system"
+        },
+        {
+          "path": "identifier.value",
+          "name": "identifier_value"
+        }
+      ],
+      "forEach": "identifier"
+    }
+  ]
+}
