@@ -193,6 +193,7 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
 
                         if (select && select.length > 0) {
                             logger.debug(`Processing ${select.length} select definitions`);
+                            let combinedRow = mainRow || {};
 
                             select.forEach((selectDef, selectIndex) => {
                                 logger.debug(`Processing select definition #${selectIndex + 1}:`, selectDef);
@@ -208,41 +209,28 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
                                         logger.debug(`Nested row data:`, nestedRow);
 
                                         if (nestedRow) {
-                                            const resourceIdColumn = `${resource.toLowerCase()}_id`;
-                                            const hasNonNullMainData = mainRow && Object.entries(mainRow).some(([key, value]) =>
-                                                key !== resourceIdColumn && value !== null
-                                            );
-
-                                            logger.debug(`Resource ID column: ${resourceIdColumn}`);
-                                            logger.debug(`Has non-null main data: ${hasNonNullMainData}`);
-                                            logger.debug(`Main row entries:`, Object.entries(mainRow || {}));
-
-                                            const finalRow = hasNonNullMainData
-                                                ? { ...mainRow, ...nestedRow }
-                                                : nestedRow;
-
-                                            logger.debug(`Adding row to results:`, finalRow);
-                                            rows.push(finalRow);
-                                        } else {
-                                            logger.debug(`Skipping null nested row`);
+                                            // Combine with the existing combined row
+                                            combinedRow = { ...combinedRow, ...nestedRow };
+                                            logger.debug(`Updated combined row:`, combinedRow);
                                         }
                                     });
                                 } else if (selectDef.column) {
                                     logger.debug(`Processing regular columns`);
+                                    const regularRow = processColumns(resourceData, selectDef.column, context);
 
-                                    const nestedRow = processColumns(resourceData, selectDef.column, context);
-                                    logger.debug(`Regular column nested row:`, nestedRow);
-
-                                    if (nestedRow) {
-                                        const finalRow = mainRow
-                                            ? { ...mainRow, ...nestedRow }
-                                            : nestedRow;
-
-                                        logger.debug(`Adding regular column row:`, finalRow);
-                                        rows.push(finalRow);
+                                    if (regularRow) {
+                                        // Combine with the existing combined row
+                                        combinedRow = { ...combinedRow, ...regularRow };
+                                        logger.debug(`Updated combined row with regular columns:`, combinedRow);
                                     }
                                 }
                             });
+
+                            // Only push the combined row once after all processing is complete
+                            if (Object.keys(combinedRow).length > 0) {
+                                logger.debug(`Adding final combined row:`, combinedRow);
+                                rows.push(combinedRow);
+                            }
                         } else if (mainRow) {
                             logger.debug(`Adding main row only:`, mainRow);
                             rows.push(mainRow);

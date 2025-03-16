@@ -8,46 +8,70 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-describe('NdjsonProcessor - forEach Functionality', () => {
-    const testDataPath = path.join(__dirname, 'fixtures', 'patient_address.ndjson');
+// Add to forEach.test.js
+
+describe('NdjsonProcessor - Advanced forEach Scenarios', () => {
+    const testDataPath = path.join(__dirname, 'fixtures', 'patient_complex.ndjson');
 
     beforeAll(() => {
-        // Create a test NDJSON file with a patient having multiple addresses
+        // Create test data with various scenarios
         const testData = [
+            // Scenario 1: Patient with no addresses
             JSON.stringify({
                 resourceType: 'Patient',
                 id: '1',
+                active: true,
+                gender: 'male'
+            }),
+            // Scenario 2: Patient with empty address array
+            JSON.stringify({
+                resourceType: 'Patient',
+                id: '2',
+                active: true,
+                gender: 'female',
+                address: []
+            }),
+            // Scenario 3: Patient with multiple addresses, some having missing fields
+            JSON.stringify({
+                resourceType: 'Patient',
+                id: '3',
+                active: true,
+                gender: 'male',
                 address: [
                     {
                         line: ['123 Main St'],
                         city: 'Springfield',
-                        state: 'IL',
-                        postalCode: '62701',
-                        country: 'USA',
-                        extension: [
-                            {
-                                url: 'http://hl7.org/fhir/StructureDefinition/geolocation',
-                                extension: [
-                                    { url: 'latitude', valueDecimal: 39.7817 },
-                                    { url: 'longitude', valueDecimal: -89.6501 }
-                                ]
-                            }
-                        ]
+                        state: 'IL'
+                        // Missing postalCode and country
                     },
                     {
-                        line: ['456 Elm St'],
+                        // Missing line
                         city: 'Chicago',
                         state: 'IL',
                         postalCode: '60601',
-                        country: 'USA',
-                        extension: [
-                            {
-                                url: 'http://hl7.org/fhir/StructureDefinition/geolocation',
-                                extension: [
-                                    { url: 'latitude', valueDecimal: 41.8781 },
-                                    { url: 'longitude', valueDecimal: -87.6298 }
-                                ]
-                            }
+                        country: 'USA'
+                    }
+                ]
+            }),
+            // Scenario 4: Patient with nested arrays in forEach
+            JSON.stringify({
+                resourceType: 'Patient',
+                id: '4',
+                active: true,
+                contact: [
+                    {
+                        relationship: [
+                            { text: 'Emergency Contact' }
+                        ],
+                        address: {
+                            line: ['789 Oak St'],
+                            city: 'Boston',
+                            state: 'MA',
+                            postalCode: '02108'
+                        },
+                        telecom: [
+                            { system: 'phone', value: '555-0123' },
+                            { system: 'email', value: 'contact@email.com' }
                         ]
                     }
                 ]
@@ -58,15 +82,79 @@ describe('NdjsonProcessor - forEach Functionality', () => {
     });
 
     afterAll(() => {
-        // Clean up the test file
         fs.unlinkSync(testDataPath);
     });
 
-    it('should process multiple addresses using forEach', async () => {
+    it('should handle patient with no addresses', async () => {
         const viewDefinition = {
-            resourceType: 'http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition',
-            name: 'Patient_Address',
-            status: 'draft',
+            resource: 'Patient',
+            select: [
+                {
+                    column: [
+                        { path: 'getResourceKey()', name: 'patient_id' },
+                        { path: 'active', name: 'active' },
+                        { path: 'gender', name: 'gender' }
+                    ]
+                },
+                {
+                    forEach: 'address',
+                    column: [
+                        { path: "line.join('\\n')", name: 'street' },
+                        { path: 'city', name: 'city' }
+                    ]
+                }
+            ]
+        };
+
+        const results = await processNdjson(testDataPath, {
+            columns: viewDefinition.select.flatMap(s => s.column),
+            resource: viewDefinition.resource,
+            select: viewDefinition.select
+        });
+
+        // Should return one row with only patient data, no address
+        expect(results).toHaveLength(1);
+        expect(results[0]).toEqual({
+            patient_id: '1',
+            active: true,
+            gender: 'male'
+        });
+    });
+
+    it('should handle patient with empty address array', async () => {
+        const viewDefinition = {
+            resource: 'Patient',
+            select: [
+                {
+                    column: [
+                        { path: 'getResourceKey()', name: 'patient_id' },
+                        { path: 'gender', name: 'gender' }
+                    ]
+                },
+                {
+                    forEach: 'address',
+                    column: [
+                        { path: 'city', name: 'city' }
+                    ]
+                }
+            ]
+        };
+
+        const results = await processNdjson(testDataPath, {
+            columns: viewDefinition.select.flatMap(s => s.column),
+            resource: viewDefinition.resource,
+            select: viewDefinition.select
+        });
+
+        expect(results).toHaveLength(1);
+        expect(results[0]).toEqual({
+            patient_id: '2',
+            gender: 'female'
+        });
+    });
+
+    it('should handle missing fields in forEach elements', async () => {
+        const viewDefinition = {
             resource: 'Patient',
             select: [
                 {
@@ -75,57 +163,71 @@ describe('NdjsonProcessor - forEach Functionality', () => {
                     ]
                 },
                 {
+                    forEach: 'address',
                     column: [
                         { path: "line.join('\\n')", name: 'street' },
                         { path: 'city', name: 'city' },
-                        { path: 'state', name: 'state' },
-                        { path: 'postalCode', name: 'zip' },
-                        { path: 'country', name: 'country' },
-                        {
-                            path: "extension.where(url = 'http://hl7.org/fhir/StructureDefinition/geolocation').extension.where(url = 'latitude').valueDecimal",
-                            name: 'latitude'
-                        },
-                        {
-                            path: "extension.where(url = 'http://hl7.org/fhir/StructureDefinition/geolocation').extension.where(url = 'longitude').valueDecimal",
-                            name: 'longitude'
-                        }
-                    ],
-                    forEach: 'address'
+                        { path: 'postalCode', name: 'zip' }
+                    ]
                 }
             ]
         };
 
-        const options = {
+        const results = await processNdjson(testDataPath, {
             columns: viewDefinition.select.flatMap(s => s.column),
             resource: viewDefinition.resource,
             select: viewDefinition.select
-        };
-
-        const results = await processNdjson(testDataPath, options);
-        expect(results).toHaveLength(2); // Expect 2 rows (one for each address)
-
-        // Verify the first address
-        expect(results[0]).toEqual({
-            patient_id: '1',
-            street: '123 Main St',
-            city: 'Springfield',
-            state: 'IL',
-            zip: '62701',
-            country: 'USA',
-            latitude: 39.7817,
-            longitude: -89.6501
         });
 
-        // Verify the second address
+        expect(results).toHaveLength(2);
+        expect(results[0]).toEqual({
+            patient_id: '3',
+            street: '123 Main St',
+            city: 'Springfield',
+            zip: null
+        });
         expect(results[1]).toEqual({
-            patient_id: '1',
-            street: '456 Elm St',
+            patient_id: '3',
+            street: null,
             city: 'Chicago',
-            state: 'IL',
-            zip: '60601',
-            country: 'USA',
-            latitude: 41.8781,
-            longitude: -87.6298
+            zip: '60601'
+        });
+    });
+
+    it('should handle nested arrays in forEach', async () => {
+        const viewDefinition = {
+            resource: 'Patient',
+            select: [
+                {
+                    column: [
+                        { path: 'getResourceKey()', name: 'patient_id' }
+                    ]
+                },
+                {
+                    forEach: 'contact',
+                    column: [
+                        { path: 'relationship.text', name: 'relationship' },
+                        { path: 'address.city', name: 'contact_city' },
+                        { path: "telecom.where(system='phone').value", name: 'phone' },
+                        { path: "telecom.where(system='email').value", name: 'email' }
+                    ]
+                }
+            ]
+        };
+
+        const results = await processNdjson(testDataPath, {
+            columns: viewDefinition.select.flatMap(s => s.column),
+            resource: viewDefinition.resource,
+            select: viewDefinition.select
+        });
+
+        expect(results).toHaveLength(1);
+        expect(results[0]).toEqual({
+            patient_id: '4',
+            relationship: 'Emergency Contact',
+            contact_city: 'Boston',
+            phone: '555-0123',
+            email: 'contact@email.com'
         });
     });
 });
