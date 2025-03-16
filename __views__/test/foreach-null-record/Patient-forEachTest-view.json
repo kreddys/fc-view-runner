@@ -1,6 +1,6 @@
 {
     "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
-    "name": "Patient",
+    "name": "Patient_Test",
     "status": "draft",
     "resource": "Patient",
     "select": [
@@ -21,34 +21,6 @@
                 {
                     "path": "birthDate",
                     "name": "birth_date"
-                },
-                {
-                    "path": "(deceased as Boolean)",
-                    "name": "deceased_boolean"
-                },
-                {
-                    "path": "(deceased as DateTime)",
-                    "name": "deceased_date_time"
-                },
-                {
-                    "path": "maritalStatus.text",
-                    "name": "marital_status"
-                },
-                {
-                    "path": "(multipleBirth as Boolean)",
-                    "name": "multiple_birth_boolean"
-                },
-                {
-                    "path": "(multipleBirth as Integer)",
-                    "name": "multiple_birth_integer"
-                },
-                {
-                    "path": "extension.where(url = 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-race').extension.where(url = 'ombCategory').valueCoding.display",
-                    "name": "race"
-                },
-                {
-                    "path": "extension.where(url = 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity').extension.where(url = 'ombCategory').valueCoding.display",
-                    "name": "ethnicity"
                 }
             ]
         },
@@ -56,7 +28,7 @@
             "forEach": "address",
             "column": [
                 {
-                    "path": "line[0]",
+                    "path": "line.join('\n')",
                     "name": "street"
                 },
                 {
