@@ -70,12 +70,14 @@ function extractSelects(selects, parentPath = '') {
         }
 
         if (select.select || select.forEach || select.forEachOrNull) {
-            nestedSelects.push({
+            const nestedSelect = {
                 path: currentPath,
                 forEach: select.forEach,
                 forEachOrNull: select.forEachOrNull,
-                ...(select.select ? extractSelects(select.select, currentPath) : {})
-            });
+                column: select.column || [],
+                select: select.select ? extractSelects(select.select, currentPath).columns : []
+            };
+            nestedSelects.push(nestedSelect);
         }
 
         if (select.unionAll) {
@@ -107,10 +109,13 @@ function parseViewDefinition(viewDefinition) {
 
     validateViewDefinition(viewDefinition);
 
+    const { columns, nestedSelects } = extractSelects(viewDefinition.select);
+
     return {
         metadata: extractMetadata(viewDefinition),
         constants: extractConstants(viewDefinition),
-        ...extractSelects(viewDefinition.select),
+        columns,
+        nestedSelects,
         whereClauses: extractWhereClauses(viewDefinition),
         resource: viewDefinition.resource,
         select: viewDefinition.select

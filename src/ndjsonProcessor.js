@@ -7,7 +7,6 @@ import logger from './logger.js';
 import { logFailedRecord } from './utils.js';
 
 // Define custom functions for FHIRPath evaluation
-// Define custom functions for FHIRPath evaluation
 const customFunctions = {
     getResourceKey: {
         fn: (inputs) => {
@@ -83,7 +82,7 @@ function evaluateFhirPath(resource, path, context) {
  * @param {object} resource - The FHIR resource.
  * @param {Array} columns - The columns to process.
  * @param {object} context - The evaluation context.
- * @returns {object} The processed row.
+ * @returns {object|null} The processed row or null if no valid data is found.
  */
 function processColumns(resource, columns, context) {
     if (!columns || !Array.isArray(columns)) {
@@ -91,13 +90,20 @@ function processColumns(resource, columns, context) {
     }
 
     const row = {};
+    let hasData = false; // Track if any column has non-null data
+
     columns.forEach((col) => {
         const result = evaluateFhirPath(resource, col.path, context);
         row[col.name] = col.collection ? result : result.length > 0 ? result[0] : null;
+
+        // If any column has non-null data, mark the row as valid
+        if (row[col.name] !== null) {
+            hasData = true;
+        }
     });
 
-    logger.debug(`Processed row: ${JSON.stringify(row, null, 2)}`);
-    return row;
+    // Return null if the row has no data (all columns are null)
+    return hasData ? row : null;
 }
 
 /**
@@ -113,53 +119,6 @@ function evaluateWhereClauses(resource, whereClauses, context) {
         logger.debug(`Evaluated where clause "${where.path}": ${JSON.stringify(result, null, 2)}`);
         return result && result.length > 0 && result[0] === true;
     });
-}
-
-/**
- * Processes nested select statements for a FHIR resource.
- * @param {object} resource - The FHIR resource.
- * @param {object} nestedSelect - The nested select definition.
- * @param {object} context - The evaluation context.
- * @returns {Array} The processed rows.
- */
-function processNestedSelect(resource, nestedSelect, context) {
-    const rows = [];
-    let parentElements = [];
-
-    if (nestedSelect.forEach) {
-        parentElements = evaluateFhirPath(resource, nestedSelect.forEach, context);
-    } else if (nestedSelect.forEachOrNull) {
-        parentElements = evaluateFhirPath(resource, nestedSelect.forEachOrNull, context);
-        if (parentElements.length === 0) {
-            parentElements = [null];
-        }
-    }
-
-    parentElements.forEach(element => {
-        const row = {};
-
-        if (nestedSelect.column) {
-            nestedSelect.column.forEach(col => {
-                const result = element ?
-                    evaluateFhirPath(element, col.path, context) :
-                    [];
-                row[col.name] = col.collection ? result : result.length > 0 ? result[0] : null;
-            });
-        }
-
-        if (nestedSelect.select) {
-            nestedSelect.select.forEach(childSelect => {
-                const childRows = processNestedSelect(element || resource, childSelect, context);
-                childRows.forEach(childRow => {
-                    rows.push({ ...row, ...childRow });
-                });
-            });
-        } else {
-            rows.push(row);
-        }
-    });
-
-    return rows;
 }
 
 /**
@@ -199,7 +158,6 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
 
         rl.on('line', (line) => {
             totalRecords++;
-            //logger.info(`Processing resource ${totalRecords}`); // Log progress in real-time
 
             limit(async () => {
                 try {
@@ -225,18 +183,37 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
                     if (includeResource) {
                         const mainRow = processColumns(resourceData, columns, context);
 
-                        if (select && select.length > 0 && select.some(selectDef => selectDef.select)) {
+                        if (select && select.length > 0) {
                             select.forEach(selectDef => {
-                                if (selectDef.select) {
-                                    const nestedRows = processNestedSelect(resourceData, selectDef, context);
-                                    nestedRows.forEach(nestedRow => {
-                                        rows.push({ ...mainRow, ...nestedRow });
+                                if (selectDef.forEach) {
+                                    // Process the forEach clause
+                                    const elements = evaluateFhirPath(resourceData, selectDef.forEach, context);
+                                    elements.forEach(element => {
+                                        const nestedRow = processColumns(element, selectDef.column, context);
+                                        if (nestedRow) { // Skip null rows
+                                            // Only add the mainRow if it contains valid data
+                                            if (mainRow) {
+                                                rows.push({ ...mainRow, ...nestedRow });
+                                            } else {
+                                                rows.push(nestedRow);
+                                            }
+                                        }
                                     });
+                                } else if (selectDef.column) {
+                                    // Process regular columns
+                                    const nestedRow = processColumns(resourceData, selectDef.column, context);
+                                    if (nestedRow) { // Skip null rows
+                                        // Only add the mainRow if it contains valid data
+                                        if (mainRow) {
+                                            rows.push({ ...mainRow, ...nestedRow });
+                                        } else {
+                                            rows.push(nestedRow);
+                                        }
+                                    }
                                 }
                             });
-                        } else {
+                        } else if (mainRow) { // Skip null rows
                             rows.push(mainRow);
-                            logger.debug(`Added row to rows array: ${JSON.stringify(mainRow, null, 2)}`);
                         }
 
                         parsedRecords++;

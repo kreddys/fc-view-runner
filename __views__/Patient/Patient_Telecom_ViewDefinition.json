@@ -1,0 +1,33 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Patient_Telecom",
+  "status": "draft",
+  "resource": "Patient",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "patient_id"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "system",
+          "name": "telecom_system"
+        },
+        {
+          "path": "value",
+          "name": "telecom_value"
+        },
+        {
+          "path": "use",
+          "name": "telecom_use"
+        }
+      ],
+      "forEach": "telecom"
+    }
+  ]
+}

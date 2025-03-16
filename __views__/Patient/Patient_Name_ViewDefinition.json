@@ -1,0 +1,33 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Patient_Name",
+  "status": "draft",
+  "resource": "Patient",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "patient_id"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "use",
+          "name": "name_use"
+        },
+        {
+          "path": "family",
+          "name": "family_name"
+        },
+        {
+          "path": "given.join(' ')",
+          "name": "given_names"
+        }
+      ],
+      "forEach": "name"
+    }
+  ]
+}

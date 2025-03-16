@@ -1,0 +1,53 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Patient_Address",
+  "status": "draft",
+  "resource": "Patient",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "patient_id"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "line.join('\n')",
+          "name": "street"
+        },
+        {
+          "path": "city",
+          "name": "city"
+        },
+        {
+          "path": "district",
+          "name": "district"
+        },
+        {
+          "path": "state",
+          "name": "state"
+        },
+        {
+          "path": "postalCode",
+          "name": "zip"
+        },
+        {
+          "path": "country",
+          "name": "country"
+        },
+        {
+          "path": "extension.where(url = 'http://hl7.org/fhir/StructureDefinition/geolocation').extension.where(url = 'latitude').valueDecimal",
+          "name": "latitude"
+        },
+        {
+          "path": "extension.where(url = 'http://hl7.org/fhir/StructureDefinition/geolocation').extension.where(url = 'longitude').valueDecimal",
+          "name": "longitude"
+        }
+      ],
+      "forEach": "address"
+    }
+  ]
+}
