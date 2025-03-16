@@ -8,47 +8,58 @@
       "column": [
         {
           "path": "getResourceKey()",
-          "name": "patient_id"
+          "name": "patient_id",
+          "type": "string"
         },
         {
           "path": "active",
-          "name": "active"
+          "name": "active",
+          "type": "boolean"
         },
         {
           "path": "gender",
-          "name": "gender"
+          "name": "gender",
+          "type": "string"
         },
         {
           "path": "birthDate",
-          "name": "birth_date"
+          "name": "birth_date",
+          "type": "string"
         },
         {
           "path": "(deceased as Boolean)",
-          "name": "deceased_boolean"
+          "name": "deceased_boolean",
+          "type": "boolean"
         },
         {
           "path": "(deceased as DateTime)",
-          "name": "deceased_date_time"
+          "name": "deceased_date_time",
+          "type": "timestamp"
         },
         {
           "path": "maritalStatus.text",
-          "name": "marital_status"
+          "name": "marital_status",
+          "type": "string"
         },
         {
           "path": "(multipleBirth as Boolean)",
-          "name": "multiple_birth_boolean"
+          "name": "multiple_birth_boolean",
+          "type": "boolean"
         },
         {
           "path": "(multipleBirth as Integer)",
-          "name": "multiple_birth_integer"
+          "name": "multiple_birth_integer",
+          "type": "integer"
         },
         {
           "path": "extension.where(url = 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-race').extension.where(url = 'ombCategory').valueCoding.display",
-          "name": "race"
+          "name": "race",
+          "type": "string"
         },
         {
           "path": "extension.where(url = 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity').extension.where(url = 'ombCategory').valueCoding.display",
-          "name": "ethnicity"
+          "name": "ethnicity",
+          "type": "string"
         }
       ]
     }

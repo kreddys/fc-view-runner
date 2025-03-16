@@ -8,7 +8,8 @@
       "column": [
         {
           "path": "getResourceKey()",
-          "name": "patient_id"
+          "name": "patient_id",
+          "type": "string"
         }
       ]
     },
@@ -16,15 +17,18 @@
       "column": [
         {
           "path": "use",
-          "name": "name_use"
+          "name": "name_use",
+          "type": "string"
         },
         {
           "path": "family",
-          "name": "family_name"
+          "name": "family_name",
+          "type": "string"
         },
         {
           "path": "given.join(' ')",
-          "name": "given_names"
+          "name": "given_names",
+          "type": "string"
         }
       ],
       "forEach": "name"

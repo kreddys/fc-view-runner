@@ -8,7 +8,8 @@
       "column": [
         {
           "path": "getResourceKey()",
-          "name": "patient_id"
+          "name": "patient_id",
+          "type": "string"
         }
       ]
     },
@@ -16,23 +17,28 @@
       "column": [
         {
           "path": "type.coding[0].code",
-          "name": "identifier_type"
+          "name": "identifier_type",
+          "type": "string"
         },
         {
           "path": "type.coding[0].system",
-          "name": "identifier_type_system"
+          "name": "identifier_type_system",
+          "type": "string"
         },
         {
           "path": "type.coding[0].display",
-          "name": "identifier_type_display"
+          "name": "identifier_type_display",
+          "type": "string"
         },
         {
           "path": "system",
-          "name": "identifier_system"
+          "name": "identifier_system",
+          "type": "string"
         },
         {
           "path": "value",
-          "name": "identifier_value"
+          "name": "identifier_value",
+          "type": "string"
         }
       ],
       "forEach": "identifier"

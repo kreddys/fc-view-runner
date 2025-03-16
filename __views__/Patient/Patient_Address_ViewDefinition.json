@@ -8,7 +8,8 @@
       "column": [
         {
           "path": "getResourceKey()",
-          "name": "patient_id"
+          "name": "patient_id",
+          "type": "string"
         }
       ]
     },
@@ -16,35 +17,43 @@
       "column": [
         {
           "path": "line.join('\n')",
-          "name": "street"
+          "name": "street",
+          "type": "string"
         },
         {
           "path": "city",
-          "name": "city"
+          "name": "city",
+          "type": "string"
         },
         {
           "path": "district",
-          "name": "district"
+          "name": "district",
+          "type": "string"
         },
         {
           "path": "state",
-          "name": "state"
+          "name": "state",
+          "type": "string"
         },
         {
           "path": "postalCode",
-          "name": "zip"
+          "name": "zip",
+          "type": "string"
         },
         {
           "path": "country",
-          "name": "country"
+          "name": "country",
+          "type": "string"
         },
         {
           "path": "extension.where(url = 'http://hl7.org/fhir/StructureDefinition/geolocation').extension.where(url = 'latitude').valueDecimal",
-          "name": "latitude"
+          "name": "latitude",
+          "type": "double"
         },
         {
           "path": "extension.where(url = 'http://hl7.org/fhir/StructureDefinition/geolocation').extension.where(url = 'longitude').valueDecimal",
-          "name": "longitude"
+          "name": "longitude",
+          "type": "double"
         }
       ],
       "forEach": "address"
