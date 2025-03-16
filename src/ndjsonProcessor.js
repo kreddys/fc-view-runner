@@ -133,6 +133,14 @@ function evaluateWhereClauses(resource, whereClauses, context) {
  * @returns {Promise<Array>} The processed rows.
  */
 async function processNdjson(filePath, { columns, whereClauses, resource, constants, select }) {
+    logger.debug(`Starting processNdjson for resource: ${resource}`);
+    logger.debug(`Configuration:`, {
+        columns: JSON.stringify(columns),
+        whereClauses: JSON.stringify(whereClauses),
+        constants: JSON.stringify(constants),
+        select: JSON.stringify(select)
+    });
+
     const context = {
         userInvocationTable: {
             ...customFunctions,
@@ -145,12 +153,11 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
     let parsedRecords = 0;
     let invalidRecords = 0;
 
-    // Track start time for time estimation
     const startTime = Date.now();
-
-    // Dynamically import p-limit
     const { default: pLimit } = await import('p-limit');
-    const limit = pLimit(config.asyncProcessing ? config.concurrencyLimit : 1); // Control concurrency
+    const limit = pLimit(config.asyncProcessing ? config.concurrencyLimit : 1);
+
+    logger.debug(`Initialized with concurrency limit: ${config.asyncProcessing ? config.concurrencyLimit : 1}`);
 
     return new Promise((resolve, reject) => {
         const stream = fs.createReadStream(filePath);
@@ -158,13 +165,13 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
 
         rl.on('line', (line) => {
             totalRecords++;
+            logger.debug(`Processing record #${totalRecords}`);
 
             limit(async () => {
                 try {
-                    // Parse the line as JSON
                     const resourceData = JSON.parse(line);
+                    logger.debug(`Parsed resource data for ID: ${resourceData.id}`);
 
-                    // Validate the resource data
                     if (typeof resourceData !== 'object' || resourceData === null) {
                         throw new Error('Invalid resource data: not a valid JSON object');
                     }
@@ -182,37 +189,62 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
 
                     if (includeResource) {
                         const mainRow = processColumns(resourceData, columns, context);
+                        logger.debug(`Main row data:`, mainRow);
 
                         if (select && select.length > 0) {
-                            select.forEach(selectDef => {
+                            logger.debug(`Processing ${select.length} select definitions`);
+
+                            select.forEach((selectDef, selectIndex) => {
+                                logger.debug(`Processing select definition #${selectIndex + 1}:`, selectDef);
+
                                 if (selectDef.forEach) {
-                                    // Process the forEach clause
                                     const elements = evaluateFhirPath(resourceData, selectDef.forEach, context);
-                                    elements.forEach(element => {
+                                    logger.debug(`ForEach ${selectDef.forEach} returned ${elements.length} elements`);
+
+                                    elements.forEach((element, elementIndex) => {
+                                        logger.debug(`Processing forEach element #${elementIndex + 1}:`, element);
+
                                         const nestedRow = processColumns(element, selectDef.column, context);
-                                        if (nestedRow) { // Skip null rows
-                                            // Only add the mainRow if it contains valid data
-                                            if (mainRow) {
-                                                rows.push({ ...mainRow, ...nestedRow });
-                                            } else {
-                                                rows.push(nestedRow);
-                                            }
+                                        logger.debug(`Nested row data:`, nestedRow);
+
+                                        if (nestedRow) {
+                                            const resourceIdColumn = `${resource.toLowerCase()}_id`;
+                                            const hasNonNullMainData = mainRow && Object.entries(mainRow).some(([key, value]) =>
+                                                key !== resourceIdColumn && value !== null
+                                            );
+
+                                            logger.debug(`Resource ID column: ${resourceIdColumn}`);
+                                            logger.debug(`Has non-null main data: ${hasNonNullMainData}`);
+                                            logger.debug(`Main row entries:`, Object.entries(mainRow || {}));
+
+                                            const finalRow = hasNonNullMainData
+                                                ? { ...mainRow, ...nestedRow }
+                                                : nestedRow;
+
+                                            logger.debug(`Adding row to results:`, finalRow);
+                                            rows.push(finalRow);
+                                        } else {
+                                            logger.debug(`Skipping null nested row`);
                                         }
                                     });
                                 } else if (selectDef.column) {
-                                    // Process regular columns
+                                    logger.debug(`Processing regular columns`);
+
                                     const nestedRow = processColumns(resourceData, selectDef.column, context);
-                                    if (nestedRow) { // Skip null rows
-                                        // Only add the mainRow if it contains valid data
-                                        if (mainRow) {
-                                            rows.push({ ...mainRow, ...nestedRow });
-                                        } else {
-                                            rows.push(nestedRow);
-                                        }
+                                    logger.debug(`Regular column nested row:`, nestedRow);
+
+                                    if (nestedRow) {
+                                        const finalRow = mainRow
+                                            ? { ...mainRow, ...nestedRow }
+                                            : nestedRow;
+
+                                        logger.debug(`Adding regular column row:`, finalRow);
+                                        rows.push(finalRow);
                                     }
                                 }
                             });
-                        } else if (mainRow) { // Skip null rows
+                        } else if (mainRow) {
+                            logger.debug(`Adding main row only:`, mainRow);
                             rows.push(mainRow);
                         }
 
@@ -222,30 +254,37 @@ async function processNdjson(filePath, { columns, whereClauses, resource, consta
                     invalidRecords++;
                     logger.error(`Error processing resource ${totalRecords}:`, err.message);
                     logger.error('Invalid resource data:', line);
-
-                    // Log the failed record to the log file
                     logFailedRecord(resource, { raw: line }, err);
                 }
 
-                // Log progress every 1000 records
                 if (totalRecords % 1000 === 0) {
-                    const elapsedTime = (Date.now() - startTime) / 1000; // Elapsed time in seconds
-                    const recordsPerSecond = totalRecords / elapsedTime; // Records processed per second
-                    const estimatedTotalTime = (totalRecords / recordsPerSecond).toFixed(2); // Estimated total time in seconds
-                    const estimatedTimeRemaining = (estimatedTotalTime - elapsedTime).toFixed(2); // Estimated time remaining in seconds
+                    const elapsedTime = (Date.now() - startTime) / 1000;
+                    const recordsPerSecond = totalRecords / elapsedTime;
+                    const estimatedTotalTime = (totalRecords / recordsPerSecond).toFixed(2);
+                    const estimatedTimeRemaining = (estimatedTotalTime - elapsedTime).toFixed(2);
 
-                    logger.info(`Processed ${totalRecords} records (${parsedRecords} parsed, ${invalidRecords} invalid)`);
-                    logger.info(`Elapsed time: ${elapsedTime.toFixed(2)} seconds`);
-                    logger.info(`Estimated time remaining: ${estimatedTimeRemaining} seconds`);
+                    logger.info(`Progress stats:`, {
+                        totalRecords,
+                        parsedRecords,
+                        invalidRecords,
+                        elapsedTime: `${elapsedTime.toFixed(2)}s`,
+                        estimatedRemaining: `${estimatedTimeRemaining}s`
+                    });
                 }
             }).catch(reject);
         });
 
         rl.on('close', () => {
             limit(() => {
-                const elapsedTime = (Date.now() - startTime) / 1000; // Elapsed time in seconds
-                logger.info(`Finished processing NDJSON file. Total records: ${totalRecords}, Parsed records: ${parsedRecords}, Invalid records: ${invalidRecords}`);
-                logger.info(`Total elapsed time: ${elapsedTime.toFixed(2)} seconds`);
+                const elapsedTime = (Date.now() - startTime) / 1000;
+                logger.info(`Final processing results:`, {
+                    totalRecords,
+                    parsedRecords,
+                    invalidRecords,
+                    totalTime: `${elapsedTime.toFixed(2)}s`,
+                    rowsGenerated: rows.length
+                });
+                logger.debug(`Final rows:`, rows);
                 resolve(rows);
             });
         });
