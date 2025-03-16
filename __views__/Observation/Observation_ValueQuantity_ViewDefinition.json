@@ -1,0 +1,41 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Observation_ValueQuantity",
+  "status": "draft",
+  "resource": "Observation",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "observation_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "valueQuantity.value",
+          "name": "value_quantity_value",
+          "type": "decimal"
+        },
+        {
+          "path": "valueQuantity.unit",
+          "name": "value_quantity_unit",
+          "type": "string"
+        },
+        {
+          "path": "valueQuantity.system",
+          "name": "value_quantity_system",
+          "type": "string"
+        },
+        {
+          "path": "valueQuantity.code",
+          "name": "value_quantity_code",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}
