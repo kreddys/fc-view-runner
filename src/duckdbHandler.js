@@ -1,51 +1,98 @@
-const duckdb = require('duckdb');
-const path = require('path');
-const fs = require('fs');
-const config = require('./config');
+import duckdb from '@duckdb/node-api';
+import path from 'path';
+import fs from 'fs';
+import config from './config.js';
+import logger from './logger.js';
+import { logFailedRecord } from './utils.js';
 
-// Ensure the data/duckdb folder exists
-const duckdbFolder = path.join(__dirname, '../data/duckdb');
+// Ensure DuckDB folder exists
+const duckdbFolder = path.resolve(config.duckdbFolder);
 if (!fs.existsSync(duckdbFolder)) {
     fs.mkdirSync(duckdbFolder, { recursive: true });
 }
 
-// Initialize DuckDB with a file path
-const dbPath = path.join(duckdbFolder, 'fhir_data.db');
-const db = new duckdb.Database(dbPath);
+const dbPath = path.join(duckdbFolder, config.duckdbFileName);
+let instance;
+const connectionPool = []; // Pool of connections
 
-function logDebug(message) {
-    if (config.debug) {
-        console.log(message);
+/**
+ * Initializes the DuckDB instance and connection pool.
+ */
+async function initialize() {
+    try {
+        // Check if the instance already exists (e.g., during testing)
+        if (!instance) {
+            instance = await duckdb.DuckDBInstance.create(dbPath);
+        }
+
+        // Check if the connection pool is already initialized
+        if (connectionPool.length === 0) {
+            // Use the connection pool size from the configuration
+            const poolSize = config.connectionPoolSize; // Get the pool size from config
+            for (let i = 0; i < poolSize; i++) {
+                const connection = await instance.connect();
+                connectionPool.push(connection);
+            }
+
+            logger.info(`DuckDB instance and connection pool (size: ${poolSize}) initialized successfully`);
+        } else {
+            logger.info('Connection pool already initialized. Skipping reinitialization.');
+        }
+    } catch (error) {
+        logger.error('Error initializing DuckDB:', error);
+        throw error;
     }
 }
 
 /**
- * Check if a table exists in DuckDB.
- * @param {string} tableName - Name of the table.
- * @returns {Promise<boolean>} - True if the table exists, false otherwise.
+ * Retrieves a connection from the connection pool.
+ * @returns {Promise<object>} A DuckDB connection.
  */
-function tableExists(tableName) {
-    return new Promise((resolve, reject) => {
-        const connection = db.connect();
-        const query = `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '${tableName}');`;
-
-        connection.all(query, (err, rows) => {
-            if (err) {
-                console.error('Error checking if table exists:', err);
-                reject(err);
-            } else {
-                resolve(rows[0].exists);
-            }
-        });
-    });
+async function getConnection() {
+    if (connectionPool.length === 0) {
+        throw new Error('No connections available in the pool');
+    }
+    return connectionPool.pop(); // Get a connection from the pool
 }
 
 /**
- * Map FHIR types to DuckDB types.
- * @param {string} fhirType - The FHIR type.
- * @returns {string} - The corresponding DuckDB type.
+ * Releases a connection back to the connection pool.
+ * @param {object} connection - The DuckDB connection to release.
  */
-function mapFhirTypeToDuckDBType(fhirType) {
+async function releaseConnection(connection) {
+    connectionPool.push(connection); // Return the connection to the pool
+}
+
+/**
+ * Checks if a table exists in the database.
+ * @param {string} tableName - The name of the table to check.
+ * @returns {Promise<boolean>} True if the table exists, false otherwise.
+ */
+async function tableExists(tableName) {
+    const connection = await getConnection();
+    try {
+        const result = await connection.runAndReadAll(
+            `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '${tableName}');`
+        );
+        return result.getRows()[0][0];
+    } catch (error) {
+        logger.error('Error checking if table exists:', error);
+        throw error;
+    } finally {
+        await releaseConnection(connection);
+    }
+}
+
+/**
+ * Maps FHIR data types to DuckDB data types.
+ * @param {string} fhirType - The FHIR data type.
+ * @param {Array} tags - Additional tags for type mapping.
+ * @returns {string} The corresponding DuckDB data type.
+ */
+function mapFhirTypeToDuckDBType(fhirType, tags = []) {
+    const typeTag = tags.find(t => t.name === 'ansi/type');
+    if (typeTag) return typeTag.value;
+
     const typeMapping = {
         boolean: 'BOOLEAN',
         integer: 'INTEGER',
@@ -59,95 +106,170 @@ function mapFhirTypeToDuckDBType(fhirType) {
         id: 'VARCHAR',
         url: 'VARCHAR',
         uuid: 'VARCHAR',
+        base64Binary: 'BLOB',
+        instant: 'TIMESTAMP',
+        time: 'TIME',
+        positiveInt: 'INTEGER',
+        unsignedInt: 'INTEGER',
+        integer64: 'BIGINT'
     };
 
-    return typeMapping[fhirType] || 'VARCHAR'; // Default to VARCHAR if type is unknown
+    return typeMapping[fhirType] || 'VARCHAR';
 }
 
 /**
- * Create a table in DuckDB based on the column definitions.
- * @param {string} tableName - Name of the table.
- * @param {Array} columns - Array of objects containing path, name, and type.
+ * Creates a table in DuckDB if it does not already exist.
+ * @param {string} tableName - The name of the table to create.
+ * @param {Array} columns - The columns to include in the table.
  */
 async function createTable(tableName, columns) {
-    const tableExistsResult = await tableExists(tableName);
-    if (tableExistsResult) {
-        logDebug(`Table "${tableName}" already exists. Skipping creation.`);
-        return;
+    const connection = await getConnection();
+    try {
+        if (!columns || !Array.isArray(columns)) {
+            throw new Error('Invalid columns: columns must be an array');
+        }
+
+        if (!await tableExists(tableName)) {
+            const columnDefs = columns.map(col => {
+                const dbType = mapFhirTypeToDuckDBType(col.type, col.tags);
+                return col.collection ? `${col.name} ${dbType}[]` : `${col.name} ${dbType}`;
+            }).join(', ');
+
+            const primaryKey = `${tableName}_id`;
+            const query = `CREATE TABLE ${tableName} (${columnDefs}, PRIMARY KEY (${primaryKey}));`;
+            logger.debug(`Creating table with query: ${query}`);
+            await connection.run(query);
+            logger.info(`Table "${tableName}" created successfully.`);
+        } else {
+            logger.info(`Table "${tableName}" already exists. Skipping creation.`);
+        }
+    } catch (error) {
+        logger.error('Error creating table:', error);
+        throw error;
+    } finally {
+        await releaseConnection(connection);
     }
-
-    const columnDefinitions = columns
-        .map((col) => `${col.name} ${mapFhirTypeToDuckDBType(col.type)}`)
-        .join(', ');
-
-    const query = `CREATE TABLE ${tableName} (${columnDefinitions});`;
-
-    logDebug(`Creating table with query: ${query}`);
-
-    return new Promise((resolve, reject) => {
-        db.run(query, (err) => {
-            if (err) {
-                console.error('Error creating table:', err);
-                reject(err);
-            } else {
-                logDebug('Table created successfully.');
-                resolve();
-            }
-        });
-    });
 }
 
 /**
- * Insert or update rows in the DuckDB table.
- * @param {string} tableName - Name of the table.
- * @param {Array} rows - Array of objects representing rows of data.
- * @param {string} primaryKey - The primary key column (e.g., "observation_id" or "patient_id").
+ * Upserts data into a table.
+ * @param {string} tableName - The name of the table.
+ * @param {Array} rows - The rows to upsert.
+ * @param {string} primaryKey - The primary key column.
+ * @returns {Promise<{inserted: number, updated: number, errors: number}>} The result of the upsert operation.
  */
-function upsertData(tableName, rows, primaryKey) {
-    return new Promise((resolve, reject) => {
-        const connection = db.connect();
+async function upsertData(tableName, rows, primaryKey) {
+    if (rows.length === 0) {
+        logger.warn(`No rows to upsert for table ${tableName}`);
+        return { inserted: 0, updated: 0, errors: 0 };
+    }
 
-        const columns = Object.keys(rows[0] || []);
+    let inserted = 0;
+    let updated = 0;
+    let errors = 0;
+
+    try {
+        const columns = Object.keys(rows[0]);
         const placeholders = columns.map(() => '?').join(', ');
-        const updateClause = columns.map((col) => `${col} = EXCLUDED.${col}`).join(', ');
+        const updateClause = columns
+            .filter(col => col !== primaryKey)
+            .map(col => `${col} = EXCLUDED.${col}`)
+            .join(', ');
 
         const query = `
-      INSERT INTO ${tableName} (${columns.join(', ')}) 
-      VALUES (${placeholders})
-      ON CONFLICT (${primaryKey}) 
-      DO UPDATE SET ${updateClause};
-    `;
+            INSERT INTO ${tableName} (${columns.join(', ')}) 
+            VALUES (${placeholders})
+            ON CONFLICT (${primaryKey}) 
+            DO UPDATE SET ${updateClause};
+        `;
 
-        logDebug(`Upserting data into table: ${tableName}`);
-        logDebug(`Upsert query: ${query}`);
+        const { default: pLimit } = await import('p-limit');
+        const limit = pLimit(config.asyncProcessing ? config.concurrencyLimit : 1); // Control concurrency
+        const batchSize = config.batchSize; // Process rows in batches
 
-        let hasError = false;
+        for (let i = 0; i < rows.length; i += batchSize) {
+            const batch = rows.slice(i, i + batchSize);
+            logger.info(`Processing batch ${i / batchSize + 1} of ${Math.ceil(rows.length / batchSize)}`);
 
-        rows.forEach((row) => {
-            const values = columns.map((col) => row[col]);
-            logDebug(`Upserting row: ${JSON.stringify(values, null, 2)}`);
+            await Promise.all(batch.map(row => limit(async () => {
+                let connection;
+                try {
+                    // Get a connection from the pool
+                    connection = await getConnection();
 
-            connection.run(query, values, (err) => {
-                if (err) {
-                    hasError = true;
-                    console.error('Error upserting row:', err);
-                    console.error('Table:', tableName);
-                    console.error('Row data:', JSON.stringify(row, null, 2));
-                    console.error('Query:', query);
-                    console.error('Values:', JSON.stringify(values, null, 2));
-                    reject(err);
+                    const values = columns.map(col => {
+                        const value = row[col];
+                        return Array.isArray(value) ? JSON.stringify(value) : value;
+                    });
+
+                    // Validate primary key
+                    if (!row[primaryKey]) {
+                        logger.error(`Missing primary key in row: ${JSON.stringify(row, null, 2)}`);
+                        errors++;
+                        return;
+                    }
+
+                    // Check if the primary key already exists in the table
+                    const existsQuery = `SELECT 1 FROM ${tableName} WHERE ${primaryKey} = ?`;
+                    const existsResult = await connection.runAndReadAll(existsQuery, [row[primaryKey]]);
+
+                    if (existsResult.getRows().length > 0) {
+                        // Row exists, so this is an update
+                        updated++;
+                        logger.debug(`Row with ${primaryKey}: ${row[primaryKey]} already exists. Updating...`);
+                    } else {
+                        // Row does not exist, so this is an insert
+                        inserted++;
+                        logger.debug(`Row with ${primaryKey}: ${row[primaryKey]} does not exist. Inserting...`);
+                    }
+
+                    // Execute the upsert query
+                    await connection.run(query, values);
+                } catch (error) {
+                    errors++;
+                    logger.error('Error upserting row:', error.message);
+                    logger.error('Row data:', JSON.stringify(row, null, 2));
+
+                    // Log the failed record to the log file
+                    logFailedRecord(tableName, row, error);
+                } finally {
+                    // Release the connection back to the pool
+                    if (connection) {
+                        await releaseConnection(connection);
+                    }
                 }
-            });
-        });
+            })));
 
-        // if (!hasError) {
-        //     logDebug('Data upserted successfully.');
-        //     resolve();
-        // }
-    });
+            // Log batch status
+            logger.info(`Processed batch ${i / batchSize + 1}: Upserted ${i + batch.length} of ${rows.length} rows (Inserted: ${inserted}, Updated: ${updated}, Errors: ${errors})`);
+        }
+    } catch (error) {
+        logger.error('Error in upsertData:', error);
+        throw error;
+    }
+
+    return { inserted, updated, errors };
 }
 
-module.exports = {
-    createTable,
-    upsertData,
-};
+/**
+ * Retrieves the database handler, initializing the DuckDB instance if necessary.
+ * @returns {Promise<{createTable: function, upsertData: function, tableExists: function}>} The database handler.
+ */
+async function getDatabaseHandler() {
+    if (!instance) {
+        await initialize();
+    }
+    return {
+        createTable,
+        upsertData,
+        tableExists,
+        getConnection, // Expose getConnection
+        releaseConnection // Expose releaseConnection
+    };
+}
+
+// Export individual functions
+export { createTable, upsertData, tableExists };
+
+// Export the default handler
+export default getDatabaseHandler;

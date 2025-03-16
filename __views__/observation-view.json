@@ -12,6 +12,11 @@
                     "type": "id"
                 },
                 {
+                    "path": "subject.getReferenceKey('Patient')",
+                    "name": "patient_id",
+                    "type": "id"
+                },
+                {
                     "path": "status",
                     "name": "status",
                     "type": "code"

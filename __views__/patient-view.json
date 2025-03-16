@@ -28,11 +28,5 @@
                 }
             ]
         }
-    ],
-    "where": [
-        {
-            "path": "active = true",
-            "description": "Filter for active patients only"
-        }
     ]
 }
