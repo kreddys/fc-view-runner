@@ -27,12 +27,7 @@
           "type": "string"
         },
         {
-          "path": "(deceased as Boolean)",
-          "name": "deceased_boolean",
-          "type": "boolean"
-        },
-        {
-          "path": "(deceased as DateTime)",
+          "path": "deceasedDateTime",
           "name": "deceased_date_time",
           "type": "timestamp"
         },
@@ -42,14 +37,9 @@
           "type": "string"
         },
         {
-          "path": "(multipleBirth as Boolean)",
+          "path": "multipleBirthBoolean",
           "name": "multiple_birth_boolean",
           "type": "boolean"
-        },
-        {
-          "path": "(multipleBirth as Integer)",
-          "name": "multiple_birth_integer",
-          "type": "integer"
         },
         {
           "path": "extension.where(url = 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-race').extension.where(url = 'ombCategory').valueCoding.display",

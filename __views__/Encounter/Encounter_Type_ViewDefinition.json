@@ -23,10 +23,6 @@
           "name": "type_coding_code"
         },
         {
-          "path": "coding[0].display",
-          "name": "type_coding_display"
-        },
-        {
           "path": "text",
           "name": "type_text"
         }

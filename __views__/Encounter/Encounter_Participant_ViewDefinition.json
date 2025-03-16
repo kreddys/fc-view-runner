@@ -23,10 +23,6 @@
           "name": "participant_type_coding_code"
         },
         {
-          "path": "type[0].coding[0].display",
-          "name": "participant_type_coding_display"
-        },
-        {
           "path": "type[0].text",
           "name": "participant_type_text"
         },
@@ -39,7 +35,7 @@
           "name": "participant_period_end"
         },
         {
-          "path": "participant.individual.getReferenceKey('Practitioner')",
+          "path": "individual.getReferenceKey('Practitioner')",
           "name": "participant_individual_reference"
         }
       ],
