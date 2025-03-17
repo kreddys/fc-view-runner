@@ -1,0 +1,47 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Organization_Address",
+  "status": "draft",
+  "resource": "Organization",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "organization_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "line.join('\n')",
+          "name": "address_line",
+          "type": "string"
+        },
+        {
+          "path": "city",
+          "name": "address_city",
+          "type": "string"
+        },
+        {
+          "path": "state",
+          "name": "address_state",
+          "type": "string"
+        },
+        {
+          "path": "postalCode",
+          "name": "address_postal_code",
+          "type": "string"
+        },
+        {
+          "path": "country",
+          "name": "address_country",
+          "type": "string"
+        }
+      ],
+      "forEach": "address"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Immunization_Meta_Profile",
+  "status": "draft",
+  "resource": "Immunization",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "immunization_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "$this",
+          "name": "meta_profile",
+          "type": "string"
+        }
+      ],
+      "forEach": "meta.profile"
+    }
+  ]
+}

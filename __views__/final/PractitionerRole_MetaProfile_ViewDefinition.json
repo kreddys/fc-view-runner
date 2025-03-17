@@ -1,0 +1,27 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "PractitionerRole_MetaProfile",
+  "status": "draft",
+  "resource": "PractitionerRole",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "practitionerrole_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "$this",
+          "name": "meta_profile",
+          "type": "string"
+        }
+      ],
+      "forEach": "meta.profile"
+    }
+  ]
+}

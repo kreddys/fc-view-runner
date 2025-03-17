@@ -1,0 +1,52 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "ImagingStudy",
+  "status": "draft",
+  "resource": "ImagingStudy",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "imagingstudy_id",
+          "type": "string"
+        },
+        {
+          "path": "status",
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "path": "subject.getReferenceKey('Patient')",
+          "name": "subject_reference",
+          "type": "string"
+        },
+        {
+          "path": "encounter.getReferenceKey('Encounter')",
+          "name": "encounter_reference",
+          "type": "string"
+        },
+        {
+          "path": "started",
+          "name": "started",
+          "type": "dateTime"
+        },
+        {
+          "path": "numberOfSeries",
+          "name": "number_of_series",
+          "type": "integer"
+        },
+        {
+          "path": "numberOfInstances",
+          "name": "number_of_instances",
+          "type": "integer"
+        },
+        {
+          "path": "location.getReferenceKey('Location')",
+          "name": "location_reference",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

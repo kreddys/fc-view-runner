@@ -1,0 +1,27 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "AllergyIntolerance_Reaction",
+  "status": "draft",
+  "resource": "AllergyIntolerance",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "allergyintolerance_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "severity",
+          "name": "severity",
+          "type": "string"
+        }
+      ],
+      "forEach": "reaction"
+    }
+  ]
+}

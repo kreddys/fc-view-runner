@@ -1,0 +1,47 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "CarePlan",
+  "status": "draft",
+  "resource": "CarePlan",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "care_plan_id",
+          "type": "string"
+        },
+        {
+          "path": "status",
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "path": "intent",
+          "name": "intent",
+          "type": "string"
+        },
+        {
+          "path": "subject.getReferenceKey('Patient')",
+          "name": "subject_reference",
+          "type": "string"
+        },
+        {
+          "path": "encounter.getReferenceKey('Encounter')",
+          "name": "encounter_reference",
+          "type": "string"
+        },
+        {
+          "path": "period.start",
+          "name": "period_start",
+          "type": "dateTime"
+        },
+        {
+          "path": "period.end",
+          "name": "period_end",
+          "type": "dateTime"
+        }
+      ]
+    }
+  ]
+}

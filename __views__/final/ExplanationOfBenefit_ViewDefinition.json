@@ -1,0 +1,97 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "ExplanationOfBenefit",
+  "status": "draft",
+  "resource": "ExplanationOfBenefit",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "explanationofbenefit_id",
+          "type": "string"
+        },
+        {
+          "path": "status",
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "path": "type.coding[0].system",
+          "name": "type_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "type.coding[0].code",
+          "name": "type_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "use",
+          "name": "use",
+          "type": "string"
+        },
+        {
+          "path": "patient.getReferenceKey('Patient')",
+          "name": "patient_reference",
+          "type": "string"
+        },
+        {
+          "path": "billablePeriod.start",
+          "name": "billable_period_start",
+          "type": "dateTime"
+        },
+        {
+          "path": "billablePeriod.end",
+          "name": "billable_period_end",
+          "type": "dateTime"
+        },
+        {
+          "path": "created",
+          "name": "created",
+          "type": "dateTime"
+        },
+        {
+          "path": "insurer.display",
+          "name": "insurer_display",
+          "type": "string"
+        },
+        {
+          "path": "provider.getReferenceKey('Practitioner')",
+          "name": "provider_reference",
+          "type": "string"
+        },
+        {
+          "path": "referral.getReferenceKey('ServiceRequest')",
+          "name": "referral_reference",
+          "type": "string"
+        },
+        {
+          "path": "facility.getReferenceKey('Location')",
+          "name": "facility_reference",
+          "type": "string"
+        },
+        {
+          "path": "claim.getReferenceKey('Claim')",
+          "name": "claim_reference",
+          "type": "string"
+        },
+        {
+          "path": "outcome",
+          "name": "outcome",
+          "type": "string"
+        },
+        {
+          "path": "payment.amount.value",
+          "name": "payment_amount_value",
+          "type": "decimal"
+        },
+        {
+          "path": "payment.amount.currency",
+          "name": "payment_amount_currency",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Claim_Priority",
+  "status": "draft",
+  "resource": "Claim",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "claim_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "coding[0].system",
+          "name": "priority_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].code",
+          "name": "priority_coding_code",
+          "type": "string"
+        }
+      ],
+      "forEach": "priority"
+    }
+  ]
+}

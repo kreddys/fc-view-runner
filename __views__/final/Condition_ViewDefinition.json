@@ -1,0 +1,42 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Condition",
+  "status": "draft",
+  "resource": "Condition",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "condition_id",
+          "type": "string"
+        },
+        {
+          "path": "subject.getReferenceKey('Patient')",
+          "name": "subject_reference",
+          "type": "string"
+        },
+        {
+          "path": "encounter.getReferenceKey('Encounter')",
+          "name": "encounter_reference",
+          "type": "string"
+        },
+        {
+          "path": "onsetDateTime",
+          "name": "onset_date_time",
+          "type": "dateTime"
+        },
+        {
+          "path": "abatementDateTime",
+          "name": "abatement_date_time",
+          "type": "dateTime"
+        },
+        {
+          "path": "recordedDate",
+          "name": "recorded_date",
+          "type": "dateTime"
+        }
+      ]
+    }
+  ]
+}

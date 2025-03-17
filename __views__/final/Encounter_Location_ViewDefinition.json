@@ -1,0 +1,25 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Encounter_Location",
+  "status": "draft",
+  "resource": "Encounter",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "encounter_id"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "location.getReferenceKey('Location')",
+          "name": "location_reference"
+        }
+      ],
+      "forEach": "location"
+    }
+  ]
+}

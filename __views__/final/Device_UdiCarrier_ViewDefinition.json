@@ -1,0 +1,32 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Device_UdiCarrier",
+  "status": "draft",
+  "resource": "Device",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "device_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "deviceIdentifier",
+          "name": "udi_carrier_device_identifier",
+          "type": "string"
+        },
+        {
+          "path": "carrierHRF",
+          "name": "udi_carrier_hrf",
+          "type": "string"
+        }
+      ],
+      "forEach": "udiCarrier"
+    }
+  ]
+}

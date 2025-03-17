@@ -1,0 +1,47 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "DocumentReference_Content",
+  "status": "draft",
+  "resource": "DocumentReference",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "document_reference_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "attachment.contentType",
+          "name": "content_attachment_content_type",
+          "type": "string"
+        },
+        {
+          "path": "attachment.data",
+          "name": "content_attachment_data",
+          "type": "string"
+        },
+        {
+          "path": "format.system",
+          "name": "content_format_system",
+          "type": "string"
+        },
+        {
+          "path": "format.code",
+          "name": "content_format_code",
+          "type": "string"
+        },
+        {
+          "path": "format.display",
+          "name": "content_format_display",
+          "type": "string"
+        }
+      ],
+      "forEach": "content"
+    }
+  ]
+}

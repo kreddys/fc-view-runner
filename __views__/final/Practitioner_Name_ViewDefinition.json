@@ -1,0 +1,37 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Practitioner_Name",
+  "status": "draft",
+  "resource": "Practitioner",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "practitioner_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "family",
+          "name": "name_family",
+          "type": "string"
+        },
+        {
+          "path": "given.join(' ')",
+          "name": "name_given",
+          "type": "string"
+        },
+        {
+          "path": "prefix.join(' ')",
+          "name": "name_prefix",
+          "type": "string"
+        }
+      ],
+      "forEach": "name"
+    }
+  ]
+}

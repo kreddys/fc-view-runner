@@ -1,0 +1,57 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "MedicationRequest",
+  "status": "draft",
+  "resource": "MedicationRequest",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "medication_request_id",
+          "type": "string"
+        },
+        {
+          "path": "status",
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "path": "intent",
+          "name": "intent",
+          "type": "string"
+        },
+        {
+          "path": "medicationCodeableConcept.text",
+          "name": "medication_codeable_concept_text",
+          "type": "string"
+        },
+        {
+          "path": "subject.reference",
+          "name": "subject_reference",
+          "type": "string"
+        },
+        {
+          "path": "encounter.reference",
+          "name": "encounter_reference",
+          "type": "string"
+        },
+        {
+          "path": "authoredOn",
+          "name": "authored_on",
+          "type": "dateTime"
+        },
+        {
+          "path": "requester.reference",
+          "name": "requester_reference",
+          "type": "string"
+        },
+        {
+          "path": "requester.display",
+          "name": "requester_display",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Claim_Item",
+  "status": "draft",
+  "resource": "Claim",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "claim_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "sequence",
+          "name": "item_sequence",
+          "type": "integer"
+        },
+        {
+          "path": "productOrService.coding[0].system",
+          "name": "product_or_service_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "productOrService.coding[0].code",
+          "name": "product_or_service_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "productOrService.coding[0].display",
+          "name": "product_or_service_coding_display",
+          "type": "string"
+        },
+        {
+          "path": "productOrService.text",
+          "name": "product_or_service_text",
+          "type": "string"
+        },
+        {
+          "path": "net.value",
+          "name": "net_value",
+          "type": "decimal"
+        },
+        {
+          "path": "net.currency",
+          "name": "net_currency",
+          "type": "string"
+        }
+      ],
+      "forEach": "item"
+    }
+  ]
+}

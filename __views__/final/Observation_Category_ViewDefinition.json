@@ -1,0 +1,37 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Observation_Category",
+  "status": "draft",
+  "resource": "Observation",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "observation_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "coding[0].system",
+          "name": "category_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].code",
+          "name": "category_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].display",
+          "name": "category_coding_display",
+          "type": "string"
+        }
+      ],
+      "forEach": "category"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "CarePlan_Addresses",
+  "status": "draft",
+  "resource": "CarePlan",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "care_plan_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "reference.getReferenceKey('Condition')",
+          "name": "addresses_reference",
+          "type": "string"
+        }
+      ],
+      "forEach": "addresses"
+    }
+  ]
+}

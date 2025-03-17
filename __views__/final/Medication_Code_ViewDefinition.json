@@ -1,0 +1,26 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Medication_Code",
+  "status": "draft",
+  "resource": "Medication",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "medication_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "text",
+          "name": "code_text",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

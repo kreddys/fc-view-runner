@@ -1,0 +1,72 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Claim",
+  "status": "draft",
+  "resource": "Claim",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "claim_id",
+          "type": "string"
+        },
+        {
+          "path": "status",
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "path": "use",
+          "name": "use",
+          "type": "string"
+        },
+        {
+          "path": "patient.getReferenceKey('Patient')",
+          "name": "patient_reference",
+          "type": "string"
+        },
+        {
+          "path": "billablePeriod.start",
+          "name": "billable_period_start",
+          "type": "dateTime"
+        },
+        {
+          "path": "billablePeriod.end",
+          "name": "billable_period_end",
+          "type": "dateTime"
+        },
+        {
+          "path": "created",
+          "name": "created",
+          "type": "dateTime"
+        },
+        {
+          "path": "provider.getReferenceKey('Organization')",
+          "name": "provider_reference",
+          "type": "string"
+        },
+        {
+          "path": "prescription.getReferenceKey('MedicationRequest')",
+          "name": "prescription_reference",
+          "type": "string"
+        },
+        {
+          "path": "facility.getReferenceKey('Location')",
+          "name": "facility_reference",
+          "type": "string"
+        },
+        {
+          "path": "total.value",
+          "name": "total_value",
+          "type": "decimal"
+        },
+        {
+          "path": "total.currency",
+          "name": "total_currency",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

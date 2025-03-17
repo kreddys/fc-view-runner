@@ -1,0 +1,37 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "AllergyIntolerance",
+  "status": "draft",
+  "resource": "AllergyIntolerance",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "allergyintolerance_id",
+          "type": "string"
+        },
+        {
+          "path": "type",
+          "name": "type",
+          "type": "string"
+        },
+        {
+          "path": "criticality",
+          "name": "criticality",
+          "type": "string"
+        },
+        {
+          "path": "patient.getReferenceKey('Patient')",
+          "name": "patient_reference",
+          "type": "string"
+        },
+        {
+          "path": "recordedDate",
+          "name": "recorded_date",
+          "type": "dateTime"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Immunization_VaccineCode",
+  "status": "draft",
+  "resource": "Immunization",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "immunization_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "coding[0].system",
+          "name": "vaccine_code_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].code",
+          "name": "vaccine_code_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].display",
+          "name": "vaccine_code_coding_display",
+          "type": "string"
+        },
+        {
+          "path": "text",
+          "name": "vaccine_code_text",
+          "type": "string"
+        }
+      ],
+      "forEach": "vaccineCode"
+    }
+  ]
+}

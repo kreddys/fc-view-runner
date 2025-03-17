@@ -1,0 +1,32 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Procedure_ReasonReference",
+  "status": "draft",
+  "resource": "Procedure",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "procedure_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "reference",
+          "name": "reason_reference_reference",
+          "type": "string"
+        },
+        {
+          "path": "display",
+          "name": "reason_reference_display",
+          "type": "string"
+        }
+      ],
+      "forEach": "reasonReference"
+    }
+  ]
+}

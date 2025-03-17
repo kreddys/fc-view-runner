@@ -1,0 +1,37 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Medication_Code_Coding",
+  "status": "draft",
+  "resource": "Medication",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "medication_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "system",
+          "name": "code_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "code",
+          "name": "code_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "display",
+          "name": "code_coding_display",
+          "type": "string"
+        }
+      ],
+      "forEach": "code.coding"
+    }
+  ]
+}

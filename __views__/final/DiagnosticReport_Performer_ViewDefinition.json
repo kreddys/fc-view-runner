@@ -1,0 +1,32 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "DiagnosticReport_Performer",
+  "status": "draft",
+  "resource": "DiagnosticReport",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "diagnostic_report_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "reference",
+          "name": "performer_reference",
+          "type": "string"
+        },
+        {
+          "path": "display",
+          "name": "performer_display",
+          "type": "string"
+        }
+      ],
+      "forEach": "performer"
+    }
+  ]
+}

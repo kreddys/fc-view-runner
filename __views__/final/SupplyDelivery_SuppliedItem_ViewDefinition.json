@@ -1,0 +1,26 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "SupplyDelivery_SuppliedItem",
+  "status": "draft",
+  "resource": "SupplyDelivery",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "supplydelivery_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "suppliedItem.quantity.value",
+          "name": "supplied_item_quantity_value",
+          "type": "decimal"
+        }
+      ]
+    }
+  ]
+}

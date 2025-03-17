@@ -1,0 +1,37 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Condition_Category",
+  "status": "draft",
+  "resource": "Condition",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "condition_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "coding[0].system",
+          "name": "category_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].code",
+          "name": "category_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].display",
+          "name": "category_coding_display",
+          "type": "string"
+        }
+      ],
+      "forEach": "category"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Location",
+  "status": "draft",
+  "resource": "Location",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "location_id",
+          "type": "string"
+        },
+        {
+          "path": "status",
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "path": "name",
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "path": "position.longitude",
+          "name": "longitude",
+          "type": "decimal"
+        },
+        {
+          "path": "position.latitude",
+          "name": "latitude",
+          "type": "decimal"
+        },
+        {
+          "path": "managingOrganization.identifier.system",
+          "name": "managing_organization_system",
+          "type": "string"
+        },
+        {
+          "path": "managingOrganization.identifier.value",
+          "name": "managing_organization_value",
+          "type": "string"
+        },
+        {
+          "path": "managingOrganization.display",
+          "name": "managing_organization_display",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}
