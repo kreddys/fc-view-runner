@@ -10,11 +10,6 @@
           "path": "getResourceKey()",
           "name": "medicationrequest_id",
           "type": "string"
-        },
-        {
-          "path": "../sequence",
-          "name": "dosage_sequence",
-          "type": "integer"
         }
       ]
     },
