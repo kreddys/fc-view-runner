@@ -1,0 +1,33 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Claim_Item_DiagnosisSequence",
+  "status": "draft",
+  "resource": "Claim",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "claim_id",
+          "type": "string"
+        },
+        {
+          "path": "$this.sequence",
+          "name": "item_sequence",
+          "type": "integer"
+        }
+      ],
+      "forEach": "item"
+    },
+    {
+      "column": [
+        {
+          "path": "$this",
+          "name": "diagnosis_sequence",
+          "type": "integer"
+        }
+      ],
+      "forEach": "item.diagnosisSequence"
+    }
+  ]
+}

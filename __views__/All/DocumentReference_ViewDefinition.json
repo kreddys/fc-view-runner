@@ -1,0 +1,37 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "DocumentReference",
+  "status": "draft",
+  "resource": "DocumentReference",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "documentreference_id",
+          "type": "string"
+        },
+        {
+          "path": "status",
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "path": "subject.getReferenceKey('Patient')",
+          "name": "subject_reference",
+          "type": "string"
+        },
+        {
+          "path": "date",
+          "name": "date",
+          "type": "dateTime"
+        },
+        {
+          "path": "custodian.getReferenceKey('Organization')",
+          "name": "custodian_reference",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

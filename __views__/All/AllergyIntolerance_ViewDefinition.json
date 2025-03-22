@@ -1,0 +1,77 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "AllergyIntolerance",
+  "status": "draft",
+  "resource": "AllergyIntolerance",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "allergyintolerance_id",
+          "type": "string"
+        },
+        {
+          "path": "clinicalStatus.coding[0].system",
+          "name": "clinical_status_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "clinicalStatus.coding[0].code",
+          "name": "clinical_status_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "verificationStatus.coding[0].system",
+          "name": "verification_status_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "verificationStatus.coding[0].code",
+          "name": "verification_status_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "type",
+          "name": "type",
+          "type": "string"
+        },
+        {
+          "path": "criticality",
+          "name": "criticality",
+          "type": "string"
+        },
+        {
+          "path": "code.coding[0].system",
+          "name": "code_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "code.coding[0].code",
+          "name": "code_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "code.coding[0].display",
+          "name": "code_coding_display",
+          "type": "string"
+        },
+        {
+          "path": "code.text",
+          "name": "code_text",
+          "type": "string"
+        },
+        {
+          "path": "patient.reference",
+          "name": "patient_reference",
+          "type": "string"
+        },
+        {
+          "path": "recordedDate",
+          "name": "recorded_date",
+          "type": "dateTime"
+        }
+      ]
+    }
+  ]
+}

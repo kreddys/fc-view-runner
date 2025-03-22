@@ -1,0 +1,47 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "MedicationRequest_DosageInstruction_DoseAndRate",
+  "status": "draft",
+  "resource": "MedicationRequest",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "medicationrequest_id",
+          "type": "string"
+        },
+        {
+          "path": "../sequence",
+          "name": "dosage_sequence",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "type.coding[0].system",
+          "name": "dose_rate_type_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "type.coding[0].code",
+          "name": "dose_rate_type_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "type.coding[0].display",
+          "name": "dose_rate_type_coding_display",
+          "type": "string"
+        },
+        {
+          "path": "doseQuantity.value",
+          "name": "dose_quantity_value",
+          "type": "decimal"
+        }
+      ],
+      "forEach": "dosageInstruction.doseAndRate"
+    }
+  ]
+}

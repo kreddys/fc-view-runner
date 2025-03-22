@@ -1,0 +1,47 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "AllergyIntolerance_Reaction",
+  "status": "draft",
+  "resource": "AllergyIntolerance",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "allergyintolerance_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "manifestation[0].coding[0].system",
+          "name": "reaction_manifestation_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "manifestation[0].coding[0].code",
+          "name": "reaction_manifestation_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "manifestation[0].coding[0].display",
+          "name": "reaction_manifestation_coding_display",
+          "type": "string"
+        },
+        {
+          "path": "manifestation[0].text",
+          "name": "reaction_manifestation_text",
+          "type": "string"
+        },
+        {
+          "path": "severity",
+          "name": "reaction_severity",
+          "type": "string"
+        }
+      ],
+      "forEach": "reaction"
+    }
+  ]
+}

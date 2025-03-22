@@ -1,0 +1,47 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Practitioner_Address",
+  "status": "draft",
+  "resource": "Practitioner",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "practitioner_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "line.join('\n')",
+          "name": "street",
+          "type": "string"
+        },
+        {
+          "path": "city",
+          "name": "city",
+          "type": "string"
+        },
+        {
+          "path": "state",
+          "name": "state",
+          "type": "string"
+        },
+        {
+          "path": "postalCode",
+          "name": "zip",
+          "type": "string"
+        },
+        {
+          "path": "country",
+          "name": "country",
+          "type": "string"
+        }
+      ],
+      "forEach": "address"
+    }
+  ]
+}

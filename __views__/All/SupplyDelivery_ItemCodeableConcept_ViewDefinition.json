@@ -1,0 +1,42 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "SupplyDelivery_ItemCodeableConcept",
+  "status": "draft",
+  "resource": "SupplyDelivery",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "supplydelivery_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "itemCodeableConcept.coding[0].system",
+          "name": "itemcodeableconcept_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "itemCodeableConcept.coding[0].code",
+          "name": "itemcodeableconcept_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "itemCodeableConcept.coding[0].display",
+          "name": "itemcodeableconcept_coding_display",
+          "type": "string"
+        },
+        {
+          "path": "itemCodeableConcept.text",
+          "name": "itemcodeableconcept_text",
+          "type": "string"
+        }
+      ],
+      "forEach": "suppliedItem.itemCodeableConcept.coding"
+    }
+  ]
+}
