@@ -31,13 +31,16 @@ npm install
 Create a `.env` file in the root directory and add the following:
 
 ```env
-DEBUG=false
-VIEW_DEFINITIONS_FOLDER=./definitions
-NDJSON_FILE_PATH=./data/ndjson/sample-data.ndjson
-DUCKDB_FOLDER=./data/duckdb
+LOG_LEVEL=info
+LOGS_FOLDER=./logs
+
+DUCKDB_FOLDER=./__data__/duckdb
 DUCKDB_FILE_NAME=fhir_data.db
 
-ASYNC_PROCESSING=true
+BULK_EXPORT_FOLDER=./__data__/ndjson/fc-bulk-export
+VIEW_DEFINITIONS_FOLDER=./__views__/All
+
+ASYNC_PROCESSING=true # Set to `false` for synchronous processing
 CONNECTION_POOL_SIZE=10
 CONCURRENCY_LIMIT=10
 BATCH_SIZE=1000
@@ -45,7 +48,7 @@ BATCH_SIZE=1000
 
 ### 4. Prepare Data
 - Place your ViewDefinition JSON files in the `VIEW_DEFINITIONS_FOLDER`.
-- Place your NDJSON file at the `NDJSON_FILE_PATH`.
+- Place your Bulk Export files in the `BULK_EXPORT_FOLDER`.
 
 ## Usage
 ### Run the Application
