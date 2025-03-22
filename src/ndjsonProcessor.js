@@ -85,24 +85,33 @@ function evaluateFhirPath(resource, path, context) {
  * @returns {object|null} The processed row or null if no valid data is found.
  */
 function processColumns(resource, columns, context) {
-    if (!columns || !Array.isArray(columns)) {
-        throw new Error('Invalid columns: columns must be an array');
-    }
-
     const row = {};
-    let hasData = false; // Track if any column has non-null data
+    let hasData = false;
 
-    columns.forEach((col) => {
-        const result = evaluateFhirPath(resource, col.path, context);
-        row[col.name] = col.collection ? result : result.length > 0 ? result[0] : null;
+    columns.forEach(col => {
+        try {
+            let result;
+            if (col.path === "$this") {
+                // Directly use the value of $this from the context
+                result = [context.$this];
+            } else {
+                // Evaluate the FHIRPath expression for other columns
+                result = evaluateFhirPath(resource, col.path, context);
+            }
 
-        // If any column has non-null data, mark the row as valid
-        if (row[col.name] !== null) {
-            hasData = true;
+            logger.debug(`Evaluated path "${col.path}": ${JSON.stringify(result)}`);
+            row[col.name] = col.collection ? result : result.length > 0 ? result[0] : null;
+
+            if (row[col.name] !== null) {
+                hasData = true;
+            }
+        } catch (error) {
+            logger.error(`Error evaluating FHIRPath "${col.path}" on resource:`, resource);
+            logger.error(error);
+            row[col.name] = null; // Set the column value to null if evaluation fails
         }
     });
 
-    // Return null if the row has no data (all columns are null)
     return hasData ? row : null;
 }
 
@@ -254,15 +263,25 @@ function processResource(resourceData, { columns, select, context }) {
             if (elements && elements.length > 0) {
                 elements.forEach(element => {
                     if (element) {
-                        const nestedRow = processColumns(element, selectDef.column, context);
+                        // Set $this to the current element in the loop
+                        const forEachContext = { ...context, $this: element };
+                        logger.debug(`Current element in forEach loop: ${JSON.stringify(element)}`);
+                        logger.debug(`Updated context with $this: ${JSON.stringify(forEachContext)}`);
+
+                        // Process columns with the updated context
+                        const nestedRow = processColumns(element, selectDef.column, forEachContext);
                         if (nestedRow && Object.keys(nestedRow).length > 0) {
                             resultRows.push({
                                 ...mainRow,
                                 ...nestedRow
                             });
+                        } else {
+                            logger.debug(`No data found for element: ${JSON.stringify(element)}`);
                         }
                     }
                 });
+            } else {
+                logger.debug(`No elements found for forEach path: ${selectDef.forEach}`);
             }
         }
     });
