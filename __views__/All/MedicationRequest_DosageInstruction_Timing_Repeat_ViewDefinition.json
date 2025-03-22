@@ -1,0 +1,37 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "MedicationRequest_DosageInstruction_Timing_Repeat",
+  "status": "draft",
+  "resource": "MedicationRequest",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "medicationrequest_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "frequency",
+          "name": "timing_frequency",
+          "type": "integer"
+        },
+        {
+          "path": "period",
+          "name": "timing_period",
+          "type": "decimal"
+        },
+        {
+          "path": "periodUnit",
+          "name": "timing_period_unit",
+          "type": "string"
+        }
+      ],
+      "forEach": "dosageInstruction.timing.repeat"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "ExplanationOfBenefit_Item_Adjudication",
+  "status": "draft",
+  "resource": "ExplanationOfBenefit",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "explanationofbenefit_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "sequence",
+          "name": "item_sequence",
+          "type": "integer"
+        },
+        {
+          "path": "category.coding[0].system",
+          "name": "item_adjudication_category_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "category.coding[0].code",
+          "name": "item_adjudication_category_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "category.coding[0].display",
+          "name": "item_adjudication_category_coding_display",
+          "type": "string"
+        },
+        {
+          "path": "amount.value",
+          "name": "item_adjudication_amount_value",
+          "type": "decimal"
+        },
+        {
+          "path": "amount.currency",
+          "name": "item_adjudication_amount_currency",
+          "type": "string"
+        }
+      ],
+      "forEach": "item"
+    }
+  ]
+}

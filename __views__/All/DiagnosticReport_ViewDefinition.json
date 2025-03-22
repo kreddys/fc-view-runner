@@ -1,0 +1,42 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "DiagnosticReport",
+  "status": "draft",
+  "resource": "DiagnosticReport",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "diagnosticreport_id",
+          "type": "string"
+        },
+        {
+          "path": "status",
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "path": "subject.getReferenceKey('Patient')",
+          "name": "subject_reference",
+          "type": "string"
+        },
+        {
+          "path": "encounter.getReferenceKey('Encounter')",
+          "name": "encounter_reference",
+          "type": "string"
+        },
+        {
+          "path": "effectiveDateTime",
+          "name": "effective_date_time",
+          "type": "dateTime"
+        },
+        {
+          "path": "issued",
+          "name": "issued",
+          "type": "dateTime"
+        }
+      ]
+    }
+  ]
+}

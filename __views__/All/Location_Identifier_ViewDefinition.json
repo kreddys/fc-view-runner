@@ -1,0 +1,67 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Location_Identifier",
+  "status": "draft",
+  "resource": "Location",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "location_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "use",
+          "name": "identifier_use",
+          "type": "string"
+        },
+        {
+          "path": "type.coding[0].system",
+          "name": "identifier_type_system",
+          "type": "string"
+        },
+        {
+          "path": "type.coding[0].code",
+          "name": "identifier_type_code",
+          "type": "string"
+        },
+        {
+          "path": "type.text",
+          "name": "identifier_type_text",
+          "type": "string"
+        },
+        {
+          "path": "system",
+          "name": "identifier_system",
+          "type": "string"
+        },
+        {
+          "path": "value",
+          "name": "identifier_value",
+          "type": "string"
+        },
+        {
+          "path": "period.start",
+          "name": "identifier_period_start",
+          "type": "dateTime"
+        },
+        {
+          "path": "period.end",
+          "name": "identifier_period_end",
+          "type": "dateTime"
+        },
+        {
+          "path": "assigner.getReferenceKey('Organization')",
+          "name": "identifier_assigner_reference",
+          "type": "string"
+        }
+      ],
+      "forEach": "identifier"
+    }
+  ]
+}

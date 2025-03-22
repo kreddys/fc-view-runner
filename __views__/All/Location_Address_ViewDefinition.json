@@ -1,0 +1,76 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Location_Address",
+  "status": "draft",
+  "resource": "Location",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "location_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "use",
+          "name": "address_use",
+          "type": "string"
+        },
+        {
+          "path": "type",
+          "name": "address_type",
+          "type": "string"
+        },
+        {
+          "path": "text",
+          "name": "address_text",
+          "type": "string"
+        },
+        {
+          "path": "line.join('\\n')",
+          "name": "address_line",
+          "type": "string"
+        },
+        {
+          "path": "city",
+          "name": "address_city",
+          "type": "string"
+        },
+        {
+          "path": "district",
+          "name": "address_district",
+          "type": "string"
+        },
+        {
+          "path": "state",
+          "name": "address_state",
+          "type": "string"
+        },
+        {
+          "path": "postalCode",
+          "name": "address_postal_code",
+          "type": "string"
+        },
+        {
+          "path": "country",
+          "name": "address_country",
+          "type": "string"
+        },
+        {
+          "path": "period.start",
+          "name": "address_period_start",
+          "type": "dateTime"
+        },
+        {
+          "path": "period.end",
+          "name": "address_period_end",
+          "type": "dateTime"
+        }
+      ]
+    }
+  ]
+}

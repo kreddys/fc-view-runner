@@ -1,0 +1,52 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Device",
+  "status": "draft",
+  "resource": "Device",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "device_id",
+          "type": "string"
+        },
+        {
+          "path": "status",
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "path": "distinctIdentifier",
+          "name": "distinct_identifier",
+          "type": "string"
+        },
+        {
+          "path": "manufactureDate",
+          "name": "manufacture_date",
+          "type": "dateTime"
+        },
+        {
+          "path": "expirationDate",
+          "name": "expiration_date",
+          "type": "dateTime"
+        },
+        {
+          "path": "lotNumber",
+          "name": "lot_number",
+          "type": "string"
+        },
+        {
+          "path": "serialNumber",
+          "name": "serial_number",
+          "type": "string"
+        },
+        {
+          "path": "patient.getReferenceKey('Patient')",
+          "name": "patient_reference",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Organization_Telecom",
+  "status": "draft",
+  "resource": "Organization",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "organization_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "system",
+          "name": "telecom_system",
+          "type": "string"
+        },
+        {
+          "path": "value",
+          "name": "telecom_value",
+          "type": "string"
+        }
+      ],
+      "forEach": "telecom"
+    }
+  ]
+}

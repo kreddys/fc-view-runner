@@ -1,0 +1,37 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "SupplyDelivery_Type",
+  "status": "draft",
+  "resource": "SupplyDelivery",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "supplydelivery_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "coding[0].system",
+          "name": "type_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].code",
+          "name": "type_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].display",
+          "name": "type_coding_display",
+          "type": "string"
+        }
+      ],
+      "forEach": "type.coding"
+    }
+  ]
+}

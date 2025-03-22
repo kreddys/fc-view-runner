@@ -1,0 +1,32 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Claim_Procedure",
+  "status": "draft",
+  "resource": "Claim",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "claim_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "sequence",
+          "name": "procedure_sequence",
+          "type": "integer"
+        },
+        {
+          "path": "procedureReference.reference",
+          "name": "procedure_reference",
+          "type": "string"
+        }
+      ],
+      "forEach": "procedure"
+    }
+  ]
+}

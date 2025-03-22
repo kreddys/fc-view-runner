@@ -1,0 +1,47 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Procedure",
+  "status": "draft",
+  "resource": "Procedure",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "procedure_id",
+          "type": "string"
+        },
+        {
+          "path": "status",
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "path": "subject.getReferenceKey('Patient')",
+          "name": "subject_reference",
+          "type": "string"
+        },
+        {
+          "path": "encounter.getReferenceKey('Encounter')",
+          "name": "encounter_reference",
+          "type": "string"
+        },
+        {
+          "path": "performedPeriod.start",
+          "name": "performed_period_start",
+          "type": "dateTime"
+        },
+        {
+          "path": "performedPeriod.end",
+          "name": "performed_period_end",
+          "type": "dateTime"
+        },
+        {
+          "path": "location.getReferenceKey('Location')",
+          "name": "location_reference",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "SupplyDelivery",
+  "status": "draft",
+  "resource": "SupplyDelivery",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "supplydelivery_id",
+          "type": "string"
+        },
+        {
+          "path": "status",
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "path": "patient.getReferenceKey('Patient')",
+          "name": "patient_reference",
+          "type": "string"
+        },
+        {
+          "path": "occurrenceDateTime",
+          "name": "occurrence_date_time",
+          "type": "dateTime"
+        }
+      ]
+    }
+  ]
+}

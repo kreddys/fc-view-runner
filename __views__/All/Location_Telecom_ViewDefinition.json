@@ -1,0 +1,52 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Location_Telecom",
+  "status": "draft",
+  "resource": "Location",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "location_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "system",
+          "name": "telecom_system",
+          "type": "string"
+        },
+        {
+          "path": "value",
+          "name": "telecom_value",
+          "type": "string"
+        },
+        {
+          "path": "use",
+          "name": "telecom_use",
+          "type": "string"
+        },
+        {
+          "path": "rank",
+          "name": "telecom_rank",
+          "type": "integer"
+        },
+        {
+          "path": "period.start",
+          "name": "telecom_period_start",
+          "type": "dateTime"
+        },
+        {
+          "path": "period.end",
+          "name": "telecom_period_end",
+          "type": "dateTime"
+        }
+      ],
+      "forEach": "telecom"
+    }
+  ]
+}

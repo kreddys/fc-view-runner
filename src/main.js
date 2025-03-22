@@ -4,80 +4,116 @@ import { parseViewDefinition } from './viewParser.js';
 import { processNdjson } from './ndjsonProcessor.js';
 import config from './config.js';
 
-function scanViewDefinitions(folderPath) {
-    const viewDefinitions = [];
-    const files = fs.readdirSync(folderPath);
+/**
+ * Scans the bulk export directory and returns a map of resource folders and their corresponding NDJSON files.
+ * @param {string} bulkExportDir - Path to the bulk export directory.
+ * @returns {Object} - A map where keys are resource folder names and values are arrays of NDJSON file paths.
+ */
+function scanBulkExportDirectory(bulkExportDir) {
+    const resourceFolders = fs.readdirSync(bulkExportDir, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
 
-    files.forEach((file) => {
-        if (path.extname(file) === '.json') {
-            const filePath = path.join(folderPath, file);
-            const content = fs.readFileSync(filePath, 'utf8');
-            try {
-                const viewDefinition = JSON.parse(content);
-                if (viewDefinition.resourceType === 'http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition') {
-                    viewDefinitions.push(viewDefinition);
-                }
-            } catch (err) {
-                console.error(`Error parsing file ${file}:`, err);
-            }
+    const resourceToNdjsonMap = {};
+
+    resourceFolders.forEach(folder => {
+        const folderPath = path.join(bulkExportDir, folder);
+        const ndjsonFiles = fs.readdirSync(folderPath)
+            .filter(file => file.endsWith('.ndjson'))
+            .map(file => path.join(folderPath, file));
+
+        if (ndjsonFiles.length > 0) {
+            resourceToNdjsonMap[folder] = ndjsonFiles;
         }
     });
 
-    return viewDefinitions;
+    return resourceToNdjsonMap;
 }
 
-async function main() {
-    try {
-        const dbHandler = await import('./duckdbHandler.js').then(module => module.default());
+/**
+ * Finds ViewDefinitions that match the given resource folder name.
+ * @param {string} viewsDir - Path to the Views directory.
+ * @param {string} resourceFolderName - Name of the resource folder (e.g., "AllergyIntolerance").
+ * @returns {Array} - Array of matching ViewDefinition file paths.
+ */
+function findMatchingViewDefinitions(viewsDir, resourceFolderName) {
+    const viewFiles = fs.readdirSync(viewsDir)
+        .filter(file => file.startsWith(`${resourceFolderName}_`) && file.endsWith('.json'));
 
-        const viewDefinitions = scanViewDefinitions(config.viewDefinitionsFolder);
-        console.log(`Found ${viewDefinitions.length} ViewDefinition(s) in folder.`);
+    return viewFiles.map(file => path.join(viewsDir, file));
+}
 
-        for (const viewDefinition of viewDefinitions) {
-            console.log(`Processing ViewDefinition: ${viewDefinition.name}`);
+/**
+ * Processes all NDJSON files in a resource folder using the matching ViewDefinitions.
+ * @param {string} resourceFolderName - Name of the resource folder (e.g., "AllergyIntolerance").
+ * @param {Array} ndjsonFiles - Array of NDJSON file paths in the folder.
+ * @param {Array} viewDefinitionFiles - Array of matching ViewDefinition file paths.
+ * @param {Object} dbHandler - Database handler instance.
+ */
+async function processResourceFolder(resourceFolderName, ndjsonFiles, viewDefinitionFiles, dbHandler) {
+    for (const viewDefinitionFile of viewDefinitionFiles) {
+        console.log(`Processing ViewDefinition: ${viewDefinitionFile}`);
 
-            const startTime = Date.now(); // Start timer
+        const viewDefinitionContent = fs.readFileSync(viewDefinitionFile, 'utf8');
+        const viewDefinition = JSON.parse(viewDefinitionContent);
 
-            const { columns, whereClauses, resource, constants, select } = parseViewDefinition(viewDefinition);
+        const { columns, whereClauses, resource, constants, select } = parseViewDefinition(viewDefinition);
 
-            // Get base columns (columns not in forEach blocks)
-            const baseColumns = select.reduce((acc, selectDef) => {
-                // If this select definition doesn't have forEach, add its columns
-                if (!selectDef.forEach && selectDef.column) {
-                    acc.push(...selectDef.column);
-                }
-                return acc;
-            }, []);
+        let allRows = [];
 
-            const rows = await processNdjson(config.ndjsonFilePath, {
-                columns: baseColumns,  // Pass only base columns
+        // Process all NDJSON files for this resource folder
+        for (const ndjsonFile of ndjsonFiles) {
+            console.log(`Processing NDJSON file: ${ndjsonFile}`);
+            const rows = await processNdjson(ndjsonFile, {
+                columns,
                 whereClauses,
                 resource,
                 constants,
                 select
             });
 
-            const tableName = viewDefinition.name.toLowerCase();
-            await dbHandler.createTable(tableName, columns);
+            allRows = allRows.concat(rows);
+        }
 
-            // Determine the resourceKey dynamically
-            const resourceKey = `${resource.toLowerCase()}_id`; // e.g., "patient_id" for "Patient" resource
+        const tableName = viewDefinition.name.toLowerCase();
+        await dbHandler.createTable(tableName, columns);
 
-            const upsertResult = await dbHandler.upsertData(tableName, rows, resourceKey);
+        const resourceKey = `${resource.toLowerCase()}_id`; // e.g., "patient_id" for "Patient" resource
+        const upsertResult = await dbHandler.upsertData(tableName, allRows, resourceKey);
 
-            const endTime = Date.now(); // End timer
-            const timeTaken = (endTime - startTime) / 1000; // Convert to seconds
+        console.log(`\nSummary for ViewDefinition "${viewDefinition.name}":`);
+        console.log(`- Records Parsed: ${allRows.length}`);
+        console.log(`- Records Inserted: ${upsertResult.inserted}`);
+        console.log(`- Records Updated: ${upsertResult.updated}`);
+        console.log(`- Errors: ${upsertResult.errors}`);
+        console.log('----------------------------------------');
+    }
+}
 
-            // Log summary
-            console.log(`\nSummary for ViewDefinition "${viewDefinition.name}":`);
-            console.log(`- Records Parsed: ${rows.length}`);
-            console.log(`- Records Inserted: ${upsertResult.inserted}`);
-            console.log(`- Records Updated: ${upsertResult.updated}`);
-            console.log(`- Errors: ${upsertResult.errors}`);
-            console.log(`- Time Taken: ${timeTaken.toFixed(2)} seconds`);
-            console.log('----------------------------------------');
+async function main() {
+    try {
+        const dbHandler = await import('./duckdbHandler.js').then(module => module.default());
 
-            console.log(`Data for ViewDefinition "${viewDefinition.name}" successfully upserted into DuckDB!`);
+        const bulkExportDir = path.resolve(config.bulkExportFolder); // Add bulkExportFolder to config
+        const viewsDir = path.resolve(config.viewDefinitionsFolder);
+
+        // Scan the bulk export directory to get resource folders and their NDJSON files
+        const resourceToNdjsonMap = scanBulkExportDirectory(bulkExportDir);
+
+        // Process each resource folder
+        for (const [resourceFolderName, ndjsonFiles] of Object.entries(resourceToNdjsonMap)) {
+            console.log(`Processing resource folder: ${resourceFolderName}`);
+
+            // Find matching ViewDefinitions for this resource folder
+            const viewDefinitionFiles = findMatchingViewDefinitions(viewsDir, resourceFolderName);
+
+            if (viewDefinitionFiles.length === 0) {
+                console.warn(`No matching ViewDefinitions found for resource folder: ${resourceFolderName}`);
+                continue;
+            }
+
+            // Process all NDJSON files in this folder using the matching ViewDefinitions
+            await processResourceFolder(resourceFolderName, ndjsonFiles, viewDefinitionFiles, dbHandler);
         }
     } catch (err) {
         console.error('Error in main function:', err.message);

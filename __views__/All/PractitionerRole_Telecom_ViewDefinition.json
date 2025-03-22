@@ -1,0 +1,37 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "PractitionerRole_Telecom",
+  "status": "draft",
+  "resource": "PractitionerRole",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "practitionerrole_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "system",
+          "name": "telecom_system",
+          "type": "string"
+        },
+        {
+          "path": "value",
+          "name": "telecom_value",
+          "type": "string"
+        },
+        {
+          "path": "use",
+          "name": "telecom_use",
+          "type": "string"
+        }
+      ],
+      "forEach": "telecom"
+    }
+  ]
+}

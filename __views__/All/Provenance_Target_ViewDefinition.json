@@ -1,0 +1,27 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Provenance_Target",
+  "status": "draft",
+  "resource": "Provenance",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "provenance_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "reference",
+          "name": "target_reference",
+          "type": "string"
+        }
+      ],
+      "forEach": "target"
+    }
+  ]
+}

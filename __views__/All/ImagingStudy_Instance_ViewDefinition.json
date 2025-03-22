@@ -1,0 +1,47 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "ImagingStudy_Instance",
+  "status": "draft",
+  "resource": "ImagingStudy",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "imagingstudy_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "uid",
+          "name": "instance_uid",
+          "type": "string"
+        },
+        {
+          "path": "sopClass.system",
+          "name": "instance_sop_class_system",
+          "type": "string"
+        },
+        {
+          "path": "sopClass.code",
+          "name": "instance_sop_class_code",
+          "type": "string"
+        },
+        {
+          "path": "number",
+          "name": "instance_number",
+          "type": "integer"
+        },
+        {
+          "path": "title",
+          "name": "instance_title",
+          "type": "string"
+        }
+      ],
+      "forEach": "series.instance"
+    }
+  ]
+}

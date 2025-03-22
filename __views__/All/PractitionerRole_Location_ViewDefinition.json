@@ -1,0 +1,37 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "PractitionerRole_Location",
+  "status": "draft",
+  "resource": "PractitionerRole",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "practitionerrole_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "identifier.system",
+          "name": "location_identifier_system",
+          "type": "string"
+        },
+        {
+          "path": "identifier.value",
+          "name": "location_identifier_value",
+          "type": "string"
+        },
+        {
+          "path": "display",
+          "name": "location_display",
+          "type": "string"
+        }
+      ],
+      "forEach": "location"
+    }
+  ]
+}

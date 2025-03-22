@@ -1,0 +1,47 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "ExplanationOfBenefit_CareTeam",
+  "status": "draft",
+  "resource": "ExplanationOfBenefit",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "explanationofbenefit_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "sequence",
+          "name": "careteam_sequence",
+          "type": "integer"
+        },
+        {
+          "path": "provider.getReferenceKey('Practitioner')",
+          "name": "careteam_provider_reference",
+          "type": "string"
+        },
+        {
+          "path": "role.coding[0].system",
+          "name": "careteam_role_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "role.coding[0].code",
+          "name": "careteam_role_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "role.coding[0].display",
+          "name": "careteam_role_coding_display",
+          "type": "string"
+        }
+      ],
+      "forEach": "careTeam"
+    }
+  ]
+}

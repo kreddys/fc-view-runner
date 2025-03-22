@@ -1,0 +1,57 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Patient",
+  "status": "draft",
+  "resource": "Patient",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "patient_id",
+          "type": "string"
+        },
+        {
+          "path": "active",
+          "name": "active",
+          "type": "boolean"
+        },
+        {
+          "path": "gender",
+          "name": "gender",
+          "type": "string"
+        },
+        {
+          "path": "birthDate",
+          "name": "birth_date",
+          "type": "string"
+        },
+        {
+          "path": "deceasedDateTime",
+          "name": "deceased_date_time",
+          "type": "timestamp"
+        },
+        {
+          "path": "maritalStatus.text",
+          "name": "marital_status",
+          "type": "string"
+        },
+        {
+          "path": "multipleBirthBoolean",
+          "name": "multiple_birth_boolean",
+          "type": "boolean"
+        },
+        {
+          "path": "extension.where(url = 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-race').extension.where(url = 'ombCategory').valueCoding.display",
+          "name": "race",
+          "type": "string"
+        },
+        {
+          "path": "extension.where(url = 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity').extension.where(url = 'ombCategory').valueCoding.display",
+          "name": "ethnicity",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

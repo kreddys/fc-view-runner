@@ -1,0 +1,32 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Practitioner_Extension",
+  "status": "draft",
+  "resource": "Practitioner",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "practitioner_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "url",
+          "name": "extension_url",
+          "type": "string"
+        },
+        {
+          "path": "valueInteger",
+          "name": "extension_value_integer",
+          "type": "integer"
+        }
+      ],
+      "forEach": "extension"
+    }
+  ]
+}

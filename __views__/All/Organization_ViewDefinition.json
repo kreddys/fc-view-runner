@@ -1,0 +1,27 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Organization",
+  "status": "draft",
+  "resource": "Organization",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "organization_id",
+          "type": "string"
+        },
+        {
+          "path": "active",
+          "name": "active",
+          "type": "boolean"
+        },
+        {
+          "path": "name",
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

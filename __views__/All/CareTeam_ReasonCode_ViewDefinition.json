@@ -1,0 +1,42 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "CareTeam_ReasonCode",
+  "status": "draft",
+  "resource": "CareTeam",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "careteam_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "coding[0].system",
+          "name": "reason_code_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].code",
+          "name": "reason_code_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].display",
+          "name": "reason_code_coding_display",
+          "type": "string"
+        },
+        {
+          "path": "text",
+          "name": "reason_code_text",
+          "type": "string"
+        }
+      ],
+      "forEach": "reasonCode"
+    }
+  ]
+}

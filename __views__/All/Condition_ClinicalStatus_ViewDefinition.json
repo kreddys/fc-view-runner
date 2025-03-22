@@ -1,0 +1,32 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Condition_ClinicalStatus",
+  "status": "draft",
+  "resource": "Condition",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "condition_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "coding[0].system",
+          "name": "clinical_status_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].code",
+          "name": "clinical_status_coding_code",
+          "type": "string"
+        }
+      ],
+      "forEach": "clinicalStatus"
+    }
+  ]
+}

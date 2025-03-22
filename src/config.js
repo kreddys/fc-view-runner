@@ -13,4 +13,5 @@ export default {
     concurrencyLimit: parseInt(process.env.CONCURRENCY_LIMIT || '10', 10), // Concurrency limit for async processing
     batchSize: parseInt(process.env.BATCH_SIZE || '1000', 10), // Batch size for processing
     logLevel: process.env.LOG_LEVEL || 'info', // Logging level (e.g., debug, info, warn, error)
+    bulkExportFolder: process.env.BULK_EXPORT_FOLDER,
 };

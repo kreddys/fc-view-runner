@@ -1,0 +1,42 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "ImagingStudy_ProcedureCode",
+  "status": "draft",
+  "resource": "ImagingStudy",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "imagingstudy_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "coding[0].system",
+          "name": "procedure_code_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].code",
+          "name": "procedure_code_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "coding[0].display",
+          "name": "procedure_code_coding_display",
+          "type": "string"
+        },
+        {
+          "path": "text",
+          "name": "procedure_code_text",
+          "type": "string"
+        }
+      ],
+      "forEach": "procedureCode"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "CareTeam_Participant",
+  "status": "draft",
+  "resource": "CareTeam",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "careteam_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "role[0].coding[0].system",
+          "name": "participant_role_coding_system",
+          "type": "string"
+        },
+        {
+          "path": "role[0].coding[0].code",
+          "name": "participant_role_coding_code",
+          "type": "string"
+        },
+        {
+          "path": "role[0].coding[0].display",
+          "name": "participant_role_coding_display",
+          "type": "string"
+        },
+        {
+          "path": "role[0].text",
+          "name": "participant_role_text",
+          "type": "string"
+        },
+        {
+          "path": "member.reference",
+          "name": "participant_member_reference",
+          "type": "string"
+        },
+        {
+          "path": "member.display",
+          "name": "participant_member_display",
+          "type": "string"
+        }
+      ],
+      "forEach": "participant"
+    }
+  ]
+}

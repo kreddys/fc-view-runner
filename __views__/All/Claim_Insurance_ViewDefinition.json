@@ -1,0 +1,37 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Claim_Insurance",
+  "status": "draft",
+  "resource": "Claim",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "claim_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "sequence",
+          "name": "insurance_sequence",
+          "type": "integer"
+        },
+        {
+          "path": "focal",
+          "name": "insurance_focal",
+          "type": "boolean"
+        },
+        {
+          "path": "coverage.display",
+          "name": "insurance_coverage_display",
+          "type": "string"
+        }
+      ],
+      "forEach": "insurance"
+    }
+  ]
+}

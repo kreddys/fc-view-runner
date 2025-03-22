@@ -1,0 +1,47 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Immunization",
+  "status": "draft",
+  "resource": "Immunization",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "immunization_id",
+          "type": "string"
+        },
+        {
+          "path": "status",
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "path": "patient.reference.substring(8)",
+          "name": "patient_reference",
+          "type": "string"
+        },
+        {
+          "path": "encounter.reference.substring(10)",
+          "name": "encounter_reference",
+          "type": "string"
+        },
+        {
+          "path": "occurrenceDateTime",
+          "name": "occurrence_date_time",
+          "type": "dateTime"
+        },
+        {
+          "path": "primarySource",
+          "name": "primary_source",
+          "type": "boolean"
+        },
+        {
+          "path": "location.reference.substring(9)",
+          "name": "location_reference",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

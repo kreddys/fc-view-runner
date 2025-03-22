@@ -1,0 +1,42 @@
+{
+  "resourceType": "http://hl7.org/fhir/uv/sql-on-fhir/StructureDefinition/ViewDefinition",
+  "name": "Medication_Meta",
+  "status": "draft",
+  "resource": "Medication",
+  "select": [
+    {
+      "column": [
+        {
+          "path": "getResourceKey()",
+          "name": "medication_id",
+          "type": "string"
+        },
+        {
+          "path": "meta.versionId",
+          "name": "meta_version_id",
+          "type": "string"
+        },
+        {
+          "path": "meta.lastUpdated",
+          "name": "meta_last_updated",
+          "type": "dateTime"
+        },
+        {
+          "path": "meta.source",
+          "name": "meta_source",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "column": [
+        {
+          "path": "$this",
+          "name": "meta_profile",
+          "type": "string"
+        }
+      ],
+      "forEach": "meta.profile"
+    }
+  ]
+}
