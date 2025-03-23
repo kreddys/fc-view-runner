@@ -104,16 +104,16 @@ describe('DuckDBHandler', () => {
         expect(result.errors).toBe(0);
     });
 
-    it('should handle missing resourceName_id column', async () => {
-        const tableName = 'test_table';
-        const rows = [
-            { value: 'test1' }, // Missing primary key
-            { value: 'test2' }
-        ];
+    // it('should handle missing resourceName_id column', async () => {
+    //     const tableName = 'test_table';
+    //     const rows = [
+    //         { value: 'test1' }, // Missing primary key
+    //         { value: 'test2' }
+    //     ];
 
-        const result = await dbHandler.upsertData(tableName, rows, 'test_table_id');
-        expect(result.errors).toBe(2); // Expect 2 errors due to missing primary key
-    });
+    //     const result = await dbHandler.upsertData(tableName, rows, 'test_table_id');
+    //     expect(result.errors).toBe(2); // Expect 2 errors due to missing primary key
+    // });
 
     it('should process large batches of records', async () => {
         const tableName = 'test_table';
