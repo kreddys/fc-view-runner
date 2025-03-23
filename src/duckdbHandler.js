@@ -169,11 +169,12 @@ async function createTable(tableName, columns) {
 async function upsertData(tableName, rows, resourceKey) {
     if (rows.length === 0) {
         logger.warn(`No rows to upsert for table ${tableName}`);
-        return { inserted: 0, deleted: 0, errors: 0 };
+        return { inserted: 0, deleted: 0, updated: 0, errors: 0 };
     }
 
     let inserted = 0;
     let deleted = 0;
+    let updated = 0; // Track updated records
     let errors = 0;
 
     let connection;
@@ -208,8 +209,15 @@ async function upsertData(tableName, rows, resourceKey) {
             const countAfterValue = Number(countAfter.getRows()[0][0]);
 
             // Calculate the number of rows deleted
-            deleted += (countBeforeValue - countAfterValue);
-            logger.debug(`Deleted ${countBeforeValue - countAfterValue} records with ${resourceKey} = ${key}`);
+            const rowsDeleted = countBeforeValue - countAfterValue;
+            deleted += rowsDeleted;
+
+            // If rows were deleted and new rows are being inserted, count them as updated
+            if (rowsDeleted > 0 && rows.some(row => row[resourceKey] === key)) {
+                updated += rowsDeleted;
+            }
+
+            logger.debug(`Deleted ${rowsDeleted} records with ${resourceKey} = ${key}`);
         }
 
         // Insert new records
@@ -245,7 +253,7 @@ async function upsertData(tableName, rows, resourceKey) {
 
         // Commit the transaction
         await connection.run('COMMIT;');
-        logger.info(`Processed ${rows.length} rows (Deleted: ${deleted}, Inserted: ${inserted}, Errors: ${errors})`);
+        logger.info(`Processed ${rows.length} rows (Deleted: ${deleted}, Inserted: ${inserted}, Updated: ${updated}, Errors: ${errors})`);
     } catch (error) {
         // Rollback the transaction in case of errors
         if (connection) {
@@ -260,9 +268,8 @@ async function upsertData(tableName, rows, resourceKey) {
         }
     }
 
-    return { inserted, deleted, errors };
+    return { inserted, deleted, updated, errors };
 }
-
 /**
  * Retrieves the database handler, initializing the DuckDB instance if necessary.
  * @returns {Promise<{createTable: function, upsertData: function, tableExists: function}>} The database handler.
