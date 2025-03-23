@@ -188,6 +188,9 @@ async function upsertData(tableName, rows, resourceKey) {
         // Get the unique resource keys from the rows
         const resourceKeys = [...new Set(rows.map(row => row[resourceKey]))];
 
+        // Track which keys are being updated
+        const updatedKeys = new Set();
+
         // Delete existing records with the same resourceKey
         for (const key of resourceKeys) {
             // Get the count of rows before deletion
@@ -215,6 +218,7 @@ async function upsertData(tableName, rows, resourceKey) {
             // If rows were deleted and new rows are being inserted, count them as updated
             if (rowsDeleted > 0 && rows.some(row => row[resourceKey] === key)) {
                 updated += rowsDeleted;
+                updatedKeys.add(key); // Mark this key as updated
             }
 
             logger.debug(`Deleted ${rowsDeleted} records with ${resourceKey} = ${key}`);
@@ -242,7 +246,11 @@ async function upsertData(tableName, rows, resourceKey) {
             try {
                 const values = allColumns.map(col => row[col] !== undefined ? row[col] : null);
                 await connection.run(insertQuery, values);
-                inserted++;
+
+                // If the row's resourceKey was not marked as updated, count it as inserted
+                if (!updatedKeys.has(row[resourceKey])) {
+                    inserted++;
+                }
             } catch (error) {
                 errors++;
                 logger.error('Error inserting row:', error.message);

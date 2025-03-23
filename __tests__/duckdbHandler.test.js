@@ -153,7 +153,8 @@ describe('DuckDBHandler', () => {
             ];
             const newResult = await dbHandler.upsertData(tableName, newRows, resourceKey);
             expect(newResult.deleted).toBe(1); // 1 record deleted (test_table_id = '1')
-            expect(newResult.inserted).toBe(2); // 2 records inserted
+            expect(newResult.inserted).toBe(1); // 1 record inserted (test_table_id = '3')
+            expect(newResult.updated).toBe(1); // 1 record updated (test_table_id = '1')
 
             // Verify the final state of the table
             try {
