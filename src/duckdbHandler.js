@@ -140,10 +140,10 @@ async function createTable(tableName, columns) {
                 ...columns.map(col => {
                     const dbType = mapFhirTypeToDuckDBType(col.type, col.tags);
                     return col.collection ? `${col.name} ${dbType}[]` : `${col.name} ${dbType}`;
-                })
+                }),
+                `last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP` // Add last_updated column
             ].join(', ');
 
-            // Removed unique constraint on patient_id
             const query = `CREATE TABLE ${tableName} (${columnDefs});`;
             logger.debug(`Creating table with query: ${query}`);
             await connection.run(query);
@@ -163,96 +163,88 @@ async function createTable(tableName, columns) {
  * Upserts data into a table.
  * @param {string} tableName - The name of the table.
  * @param {Array} rows - The rows to upsert.
- * @param {string} resourceKey - The resource name.
+ * @param {string} resourceKey - The resource key (e.g., "patient_id").
  * @returns {Promise<{inserted: number, updated: number, errors: number}>} The result of the upsert operation.
  */
 async function upsertData(tableName, rows, resourceKey) {
     if (rows.length === 0) {
         logger.warn(`No rows to upsert for table ${tableName}`);
-        return { inserted: 0, updated: 0, errors: 0 };
+        return { inserted: 0, deleted: 0, errors: 0 };
     }
 
     let inserted = 0;
-    let updated = 0;
+    let deleted = 0;
     let errors = 0;
 
+    let connection;
+
     try {
-        // Get table schema dynamically
-        const connection = await getConnection();
+        connection = await getConnection();
+
+        // Start a transaction
+        await connection.run('BEGIN TRANSACTION;');
+
+        // Get the unique resource keys from the rows
+        const resourceKeys = [...new Set(rows.map(row => row[resourceKey]))];
+
+        // Delete existing records with the same resourceKey
+        for (const key of resourceKeys) {
+            const deleteQuery = `DELETE FROM ${tableName} WHERE ${resourceKey} = ?;`;
+            const deleteResult = await connection.run(deleteQuery, [key]);
+
+            deleted += deleteResult.changes; // Track the number of deleted records
+            logger.debug(`Deleted ${deleteResult.changes} records with ${resourceKey} = ${key}`);
+        }
+
+        // Insert new records
         const tableSchema = await connection.runAndReadAll(`
             SELECT column_name, data_type 
             FROM information_schema.columns 
             WHERE table_name = '${tableName}'
         `);
-        await releaseConnection(connection);
 
-        // Extract column names (excluding id)
+        // Exclude id and last_updated columns
         const allColumns = tableSchema.getRows()
             .map(row => row[0])
-            .filter(col => col !== 'id');
+            .filter(col => col !== 'id' && col !== 'last_updated');
 
-        // Prepare SQL query for INSERT
         const placeholders = allColumns.map(() => '?').join(', ');
-        const query = `
+        const insertQuery = `
             INSERT INTO ${tableName} (${allColumns.join(', ')}) 
             VALUES (${placeholders});
         `;
 
-        const { default: pLimit } = await import('p-limit');
-        const limit = pLimit(config.asyncProcessing ? config.concurrencyLimit : 1);
-        const batchSize = config.batchSize;
-
-        for (let i = 0; i < rows.length; i += batchSize) {
-            const batch = rows.slice(i, i + batchSize);
-            logger.info(`Processing batch ${i / batchSize + 1} of ${Math.ceil(rows.length / batchSize)}`);
-
-            await Promise.all(batch.map(row => limit(async () => {
-                let connection;
-                try {
-                    connection = await getConnection();
-
-                    // Validate resource key
-                    if (!row[resourceKey]) {
-                        logger.error(`Missing resource key in row: ${JSON.stringify(row, null, 2)}`);
-                        errors++;
-                        return; // Skip this row
-                    }
-
-                    // Ensure all columns are present with null defaults
-                    const values = allColumns.map(col => {
-                        const value = row[col];
-                        return value !== undefined ? value : null;
-                    });
-
-                    // Insert the row
-                    await connection.run(query, values);
-                    inserted++;
-                } catch (error) {
-                    errors++;
-                    logger.error('Error inserting row:', error.message);
-                    logger.error('Failed values:', JSON.stringify({
-                        patient_id: row[resourceKey],
-                        values: values.map((v, i) => ({
-                            column: allColumns[i],
-                            value: v
-                        }))
-                    }, null, 2));
-                    logFailedRecord(tableName, row, error);
-                } finally {
-                    if (connection) {
-                        await releaseConnection(connection);
-                    }
-                }
-            })));
-
-            logger.info(`Processed batch ${i / batchSize + 1}: Upserted ${i + batch.length} of ${rows.length} rows (Inserted: ${inserted}, Updated: ${updated}, Errors: ${errors})`);
+        for (const row of rows) {
+            try {
+                const values = allColumns.map(col => row[col] !== undefined ? row[col] : null);
+                await connection.run(insertQuery, values);
+                inserted++;
+            } catch (error) {
+                errors++;
+                logger.error('Error inserting row:', error.message);
+                logger.error('Failed row:', JSON.stringify(row, null, 2));
+                logFailedRecord(tableName, row, error);
+            }
         }
+
+        // Commit the transaction
+        await connection.run('COMMIT;');
+        logger.info(`Processed ${rows.length} rows (Deleted: ${deleted}, Inserted: ${inserted}, Errors: ${errors})`);
     } catch (error) {
+        // Rollback the transaction in case of errors
+        if (connection) {
+            await connection.run('ROLLBACK;');
+        }
+        errors += rows.length; // Count all rows as errors if the operation fails
         logger.error('Error in upsertData:', error);
         throw error;
+    } finally {
+        if (connection) {
+            await releaseConnection(connection);
+        }
     }
 
-    return { inserted, updated, errors };
+    return { inserted, deleted, errors };
 }
 
 /**
