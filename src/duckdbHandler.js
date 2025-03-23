@@ -190,10 +190,15 @@ async function upsertData(tableName, rows, resourceKey) {
         // Delete existing records with the same resourceKey
         for (const key of resourceKeys) {
             const deleteQuery = `DELETE FROM ${tableName} WHERE ${resourceKey} = ?;`;
-            const deleteResult = await connection.run(deleteQuery, [key]);
+            await connection.run(deleteQuery, [key]);
 
-            deleted += deleteResult.changes; // Track the number of deleted records
-            logger.debug(`Deleted ${deleteResult.changes} records with ${resourceKey} = ${key}`);
+            // Manually track the number of deleted records
+            const deleteResult = await connection.runAndReadAll(
+                `SELECT COUNT(*) FROM ${tableName} WHERE ${resourceKey} = ?;`,
+                [key]
+            );
+            deleted += Number(deleteResult.getRows()[0][0]); // Convert BigInt to number
+            logger.debug(`Deleted ${deleted} records with ${resourceKey} = ${key}`);
         }
 
         // Insert new records
