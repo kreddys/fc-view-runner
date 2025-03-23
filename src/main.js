@@ -76,10 +76,10 @@ async function processResourceFolder(resourceFolderName, ndjsonFiles, viewDefini
         }
 
         const tableName = viewDefinition.name.toLowerCase();
-        await dbHandler.createTable(tableName, columns);
+        const resourceKey = `${resource.toLowerCase()}_id`; // Determine the resource key dynamically
+        await dbHandler.createTable(tableName, columns, resourceKey); // Pass the resource key to createTable
 
-        const resourceKey = `${resource.toLowerCase()}_id`; // e.g., "patient_id" for "Patient" resource
-        const upsertResult = await dbHandler.upsertData(tableName, allRows, resourceKey);
+        const upsertResult = await dbHandler.upsertData(tableName, allRows, resourceKey); // Pass the resource key to upsertData
 
         console.log(`\nSummary for ViewDefinition "${viewDefinition.name}":`);
         console.log(`- Records Parsed: ${allRows.length}`);
