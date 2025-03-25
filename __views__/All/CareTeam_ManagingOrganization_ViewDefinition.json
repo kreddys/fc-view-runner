@@ -16,7 +16,7 @@
     {
       "column": [
         {
-          "path": "reference",
+          "path": "reference.getReferenceKey('Organization')",
           "name": "managing_organization_reference",
           "type": "string"
         },

@@ -133,3 +133,85 @@ describe('NdjsonProcessor - Simple forEach Scenario', () => {
         ]);
     });
 });
+
+describe('NdjsonProcessor - CareTeam with ManagingOrganization', () => {
+    const testDataPath = path.join(__dirname, 'fixtures', 'careteam_organization.ndjson');
+
+    afterAll(() => {
+        // Clean up test file if it exists
+        if (fs.existsSync(testDataPath)) {
+            fs.unlinkSync(testDataPath);
+        }
+    });
+
+    it('should extract organization reference from CareTeam', async () => {
+        // Create test data with CareTeam having managingOrganization
+        const testData = JSON.stringify({
+            "resourceType": "CareTeam",
+            "id": "1279",
+            "meta": {
+                "versionId": "1",
+                "lastUpdated": "2025-02-16T23:19:36.722+00:00",
+                "source": "#xweGFFrP6vpNiP2Q",
+                "profile": ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-careteam"]
+            },
+            "status": "active",
+            "subject": {
+                "reference": "Patient/1238"
+            },
+            "encounter": {
+                "reference": "Encounter/1278"
+            },
+            "period": {
+                "start": "2014-04-03T00:10:42-05:00"
+            },
+            "managingOrganization": [{
+                "reference": "Organization/1193",
+                "display": "VANDERBILT BEDFORD HOSPITAL LLC"
+            }]
+        });
+        fs.writeFileSync(testDataPath, testData);
+
+        const viewDefinition = {
+            resource: "CareTeam",
+            select: [
+                {
+                    column: [
+                        { path: "getResourceKey()", name: "careteam_id", type: "string" }
+                    ]
+                },
+                {
+                    column: [
+                        {
+                            path: "reference.getReferenceKey('Organization')",
+                            name: "managing_organization_id",
+                            type: "string"
+                        },
+                        {
+                            path: "display",
+                            name: "managing_organization_display",
+                            type: "string"
+                        }
+                    ],
+                    forEach: "managingOrganization"
+                }
+            ]
+        };
+
+        const results = await processNdjson(testDataPath, {
+            columns: viewDefinition.select[0].column,
+            resource: viewDefinition.resource,
+            select: viewDefinition.select,
+            constants: []
+        });
+
+        console.log('CareTeam Results:', JSON.stringify(results, null, 2));
+
+        expect(results).toHaveLength(1);
+        expect(results[0]).toEqual({
+            careteam_id: "1279",
+            managing_organization_id: "1193",  // This is the key assertion
+            managing_organization_display: "VANDERBILT BEDFORD HOSPITAL LLC"
+        });
+    });
+});

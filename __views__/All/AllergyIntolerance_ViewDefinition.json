@@ -62,7 +62,7 @@
           "type": "string"
         },
         {
-          "path": "patient.reference",
+          "path": "patient.getReferenceKey('Patient')",
           "name": "patient_reference",
           "type": "string"
         },

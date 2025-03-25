@@ -17,24 +17,68 @@ const customFunctions = {
     },
     getReferenceKey: {
         fn: (inputs, resourceType) => {
-            // inputs is an array of references
-            if (!inputs || inputs.length === 0) return [];
+            console.log('=== START getReferenceKey DEBUG ===');
+            console.log('Inputs:', JSON.stringify(inputs, null, 2));
+            console.log('ResourceType parameter:', resourceType);
 
-            const reference = inputs[0];
-            if (!reference.reference) return [];
+            try {
+                // Handle empty inputs
+                if (!inputs || inputs.length === 0) {
+                    console.log('No inputs provided');
+                    return [];
+                }
 
-            // Extract the reference ID (e.g., "Patient/123" -> "123")
-            const referenceId = reference.reference.split('/')[1];
+                // Get the first input (FHIRPath functions work on collections)
+                const input = inputs[0];
+                console.log('Processing input:', JSON.stringify(input, null, 2));
 
-            // If a resourceType is provided, validate the reference type
-            if (resourceType && !reference.reference.startsWith(resourceType)) {
-                return []; // Return empty collection if the reference type doesn't match
+                // Extract reference string
+                let reference;
+                if (typeof input === 'string') {
+                    console.log('Input is direct reference string');
+                    reference = input;
+                } else if (input && typeof input === 'object') {
+                    console.log('Input is object, checking for reference property');
+                    if (input.reference) {
+                        reference = input.reference;
+                    } else if (input.reference && input.reference.reference) {
+                        reference = input.reference.reference;
+                    }
+                }
+
+                if (!reference) {
+                    console.log('No reference found in input');
+                    return [];
+                }
+
+                console.log('Extracted reference:', reference);
+
+                // Split reference (format "ResourceType/ID")
+                const parts = reference.split('/');
+                console.log('Reference parts:', parts);
+
+                if (parts.length !== 2) {
+                    console.log('Invalid reference format');
+                    return [];
+                }
+
+                // Validate resource type if specified
+                if (resourceType && parts[0] !== resourceType) {
+                    console.log(`Resource type mismatch (expected ${resourceType}, got ${parts[0]})`);
+                    return [];
+                }
+
+                const result = [parts[1]];
+                console.log('=== END getReferenceKey DEBUG ===');
+                console.log('Returning:', result);
+                return result;
+            } catch (e) {
+                console.error('Error in getReferenceKey:', e);
+                return [];
             }
-
-            return [referenceId]; // Return the reference ID
         },
-        arity: { 0: [], 1: ['String'] }, // Optional resourceType parameter
-    },
+        arity: { 0: [], 1: ['String'] }
+    }
 };
 
 /**
